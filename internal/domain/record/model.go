@@ -44,7 +44,7 @@ type RecordRef struct {
 
 // SearchResult represents a search hit with relevance
 type SearchResult struct {
-	Record   RecordRef `json:"record"`
-	Rank     float64   `json:"rank"`
-	Snippet  string    `json:"snippet,omitempty"`
+	Record  RecordRef `json:"record"`
+	Rank    float64   `json:"rank"`
+	Snippet string    `json:"snippet,omitempty"`
 }

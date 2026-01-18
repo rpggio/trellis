@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ganot/threds-mcp/internal/domain/activity"
-	"github.com/ganot/threds-mcp/internal/repository"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +34,7 @@ func TestActivityRepository_LogList(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	require.NoError(t, repo.Log(ctx, "tenant1", entry2))
 
-	entries, err := repo.List(ctx, "tenant1", repository.ListActivityOptions{ProjectID: "p1"})
+	entries, err := repo.List(ctx, "tenant1", activity.ListActivityOptions{ProjectID: "p1"})
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 	require.Equal(t, entry2.ActivityType, entries[0].ActivityType)
@@ -63,7 +62,7 @@ func TestActivityRepository_FiltersAndTenantIsolation(t *testing.T) {
 	require.NoError(t, repo.Log(ctx, "tenant1", entry))
 
 	activityType := activity.TypeRecordUpdated
-	opts := repository.ListActivityOptions{
+	opts := activity.ListActivityOptions{
 		ProjectID:    "p1",
 		SessionID:    &sessionID,
 		RecordID:     &recordID,
@@ -73,7 +72,7 @@ func TestActivityRepository_FiltersAndTenantIsolation(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 
-	entries, err = repo.List(ctx, "tenant2", repository.ListActivityOptions{ProjectID: "p2"})
+	entries, err = repo.List(ctx, "tenant2", activity.ListActivityOptions{ProjectID: "p2"})
 	require.NoError(t, err)
 	require.Len(t, entries, 0)
 }

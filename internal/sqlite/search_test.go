@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/repository"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,7 +31,7 @@ func TestSearchRepository_Search(t *testing.T) {
 	require.NoError(t, repo.Create(ctx, "tenant1", rec))
 
 	searchRepo := NewSearchRepository(db)
-	results, err := searchRepo.Search(ctx, "tenant1", "p1", "unique", repository.SearchOptions{})
+	results, err := searchRepo.Search(ctx, "tenant1", "p1", "unique", record.SearchOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, "r1", results[0].Record.ID)
@@ -75,7 +74,7 @@ func TestSearchRepository_TenantIsolation(t *testing.T) {
 	require.NoError(t, repo.Create(ctx, "tenant2", rec2))
 
 	searchRepo := NewSearchRepository(db)
-	results, err := searchRepo.Search(ctx, "tenant1", "p1", "shared", repository.SearchOptions{})
+	results, err := searchRepo.Search(ctx, "tenant1", "p1", "shared", record.SearchOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, "r1", results[0].Record.ID)

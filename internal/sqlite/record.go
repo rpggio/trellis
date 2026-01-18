@@ -184,7 +184,7 @@ func (r *RecordRepository) Delete(ctx context.Context, tenantID, id string) erro
 }
 
 // List returns records matching the given options as lightweight references
-func (r *RecordRepository) List(ctx context.Context, tenantID string, opts repository.ListRecordsOptions) ([]record.RecordRef, error) {
+func (r *RecordRepository) List(ctx context.Context, tenantID string, opts record.ListRecordsOptions) ([]record.RecordRef, error) {
 	query := `
 		SELECT
 			r.id, r.type, r.title, r.summary, r.state, r.parent_id,

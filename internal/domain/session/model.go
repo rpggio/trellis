@@ -32,21 +32,21 @@ type Session struct {
 
 // ContextBundle contains everything needed to reason with a record
 type ContextBundle struct {
-	Target        record.Record    `json:"target"`
-	Parent        *record.Record   `json:"parent,omitempty"`
-	OpenChildren  []record.Record  `json:"open_children"`
+	Target        record.Record      `json:"target"`
+	Parent        *record.Record     `json:"parent,omitempty"`
+	OpenChildren  []record.Record    `json:"open_children"`
 	OtherChildren []record.RecordRef `json:"other_children"`
 	Grandchildren []record.RecordRef `json:"grandchildren"`
-	Warnings      []string         `json:"warnings,omitempty"`
+	Warnings      []string           `json:"warnings,omitempty"`
 }
 
 // ConflictInfo describes a conflict detected during activation or update
 type ConflictInfo struct {
-	ConflictType    string    `json:"conflict_type"` // "activation" or "update"
-	OtherSessionID  string    `json:"other_session_id,omitempty"`
-	LocalVersion    *record.Record `json:"local_version,omitempty"`
-	RemoteVersion   *record.Record `json:"remote_version,omitempty"`
-	Message         string    `json:"message"`
+	ConflictType   string         `json:"conflict_type"` // "activation" or "update"
+	OtherSessionID string         `json:"other_session_id,omitempty"`
+	LocalVersion   *record.Record `json:"local_version,omitempty"`
+	RemoteVersion  *record.Record `json:"remote_version,omitempty"`
+	Message        string         `json:"message"`
 }
 
 // SessionInfo provides information about an active session

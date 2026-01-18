@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ganot/threds-mcp/internal/domain/activity"
-	"github.com/ganot/threds-mcp/internal/repository"
 )
 
 // ActivityRepository implements repository.ActivityRepository for SQLite
@@ -61,7 +60,7 @@ func (r *ActivityRepository) Log(ctx context.Context, tenantID string, entry *ac
 }
 
 // List returns activity entries matching the given filters
-func (r *ActivityRepository) List(ctx context.Context, tenantID string, opts repository.ListActivityOptions) ([]activity.ActivityEntry, error) {
+func (r *ActivityRepository) List(ctx context.Context, tenantID string, opts activity.ListActivityOptions) ([]activity.ActivityEntry, error) {
 	query := `
 		SELECT
 			id, tenant_id, project_id, session_id, record_id,

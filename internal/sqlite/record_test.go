@@ -119,7 +119,7 @@ func TestRecordRepository_ListFilters(t *testing.T) {
 		require.NoError(t, repo.Create(ctx, "tenant1", rec))
 	}
 
-	opts := repository.ListRecordsOptions{
+	opts := record.ListRecordsOptions{
 		ProjectID: "p1",
 		States:    []record.RecordState{record.StateOpen},
 		Types:     []string{"question"},

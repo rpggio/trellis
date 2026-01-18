@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/repository"
 )
 
 // SearchRepository implements repository.SearchRepository for SQLite
@@ -20,7 +19,7 @@ func NewSearchRepository(db *DB) *SearchRepository {
 }
 
 // Search performs a full-text search over records
-func (r *SearchRepository) Search(ctx context.Context, tenantID, projectID, query string, opts repository.SearchOptions) ([]record.SearchResult, error) {
+func (r *SearchRepository) Search(ctx context.Context, tenantID, projectID, query string, opts record.SearchOptions) ([]record.SearchResult, error) {
 	baseQuery := `
 		SELECT
 			r.id, r.type, r.title, r.summary, r.state, r.parent_id,
