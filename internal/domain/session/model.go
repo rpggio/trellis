@@ -55,4 +55,5 @@ type SessionInfo struct {
 	FocusRecord  *string   `json:"focus_record,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	LastActivity time.Time `json:"last_activity"`
+	LastSyncTick int64     `json:"last_sync_tick"`
 }

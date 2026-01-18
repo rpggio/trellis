@@ -168,7 +168,7 @@ func (r *SessionRepository) Close(ctx context.Context, tenantID, id string) erro
 // ListActive returns active sessions for a project
 func (r *SessionRepository) ListActive(ctx context.Context, tenantID, projectID string) ([]session.SessionInfo, error) {
 	query := `
-		SELECT id, focus_record, created_at, last_activity
+		SELECT id, focus_record, created_at, last_activity, last_sync_tick
 		FROM sessions
 		WHERE tenant_id = ? AND project_id = ? AND status = 'active'
 		ORDER BY last_activity DESC
@@ -184,7 +184,7 @@ func (r *SessionRepository) ListActive(ctx context.Context, tenantID, projectID 
 	for rows.Next() {
 		var info session.SessionInfo
 		var focus sql.NullString
-		if err := rows.Scan(&info.SessionID, &focus, &info.CreatedAt, &info.LastActivity); err != nil {
+		if err := rows.Scan(&info.SessionID, &focus, &info.CreatedAt, &info.LastActivity, &info.LastSyncTick); err != nil {
 			return nil, fmt.Errorf("failed to scan session info: %w", err)
 		}
 		if focus.Valid {
@@ -202,7 +202,7 @@ func (r *SessionRepository) ListActive(ctx context.Context, tenantID, projectID 
 // GetByRecordID returns active or stale sessions where a record is activated
 func (r *SessionRepository) GetByRecordID(ctx context.Context, tenantID, recordID string) ([]session.SessionInfo, error) {
 	query := `
-		SELECT s.id, s.focus_record, s.created_at, s.last_activity
+		SELECT s.id, s.focus_record, s.created_at, s.last_activity, s.last_sync_tick
 		FROM sessions s
 		JOIN session_activations sa ON sa.session_id = s.id
 		WHERE s.tenant_id = ? AND sa.record_id = ? AND s.status IN ('active', 'stale')
@@ -219,7 +219,7 @@ func (r *SessionRepository) GetByRecordID(ctx context.Context, tenantID, recordI
 	for rows.Next() {
 		var info session.SessionInfo
 		var focus sql.NullString
-		if err := rows.Scan(&info.SessionID, &focus, &info.CreatedAt, &info.LastActivity); err != nil {
+		if err := rows.Scan(&info.SessionID, &focus, &info.CreatedAt, &info.LastActivity, &info.LastSyncTick); err != nil {
 			return nil, fmt.Errorf("failed to scan session info: %w", err)
 		}
 		if focus.Valid {

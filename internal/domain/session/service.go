@@ -234,6 +234,11 @@ func (s *Service) GetActiveSessionsForRecord(ctx context.Context, tenantID, reco
 	return s.sessions.GetByRecordID(ctx, tenantID, recordID)
 }
 
+// ListActiveSessions returns active sessions for a project.
+func (s *Service) ListActiveSessions(ctx context.Context, tenantID, projectID string) ([]SessionInfo, error) {
+	return s.sessions.ListActive(ctx, tenantID, projectID)
+}
+
 func (s *Service) ensureSession(ctx context.Context, tenantID, sessionID string, target *record.Record, projectTick int64) (string, error) {
 	now := time.Now()
 	if sessionID == "" {

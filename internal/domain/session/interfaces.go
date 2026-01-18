@@ -20,6 +20,7 @@ type SessionRepository interface {
 	Get(ctx context.Context, tenantID, id string) (*Session, error)
 	Update(ctx context.Context, tenantID string, sess *Session) error
 	Close(ctx context.Context, tenantID, id string) error
+	ListActive(ctx context.Context, tenantID, projectID string) ([]SessionInfo, error)
 	GetByRecordID(ctx context.Context, tenantID, recordID string) ([]SessionInfo, error)
 	AddActivation(ctx context.Context, sessionID, recordID string, tick int64) error
 }

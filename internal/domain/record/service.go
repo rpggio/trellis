@@ -280,6 +280,40 @@ func (s *Service) Get(ctx context.Context, tenantID, id string) (*Record, error)
 	return rec, nil
 }
 
+// GetRef returns a lightweight record reference with child counts.
+func (s *Service) GetRef(ctx context.Context, tenantID, id string) (RecordRef, error) {
+	rec, err := s.records.Get(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return RecordRef{}, ErrRecordNotFound
+		}
+		return RecordRef{}, fmt.Errorf("getting record: %w", err)
+	}
+
+	childRefs, err := s.records.GetChildrenRefs(ctx, tenantID, id)
+	if err != nil {
+		return RecordRef{}, fmt.Errorf("getting children: %w", err)
+	}
+
+	openCount := 0
+	for _, ref := range childRefs {
+		if ref.State == StateOpen {
+			openCount++
+		}
+	}
+
+	return RecordRef{
+		ID:                rec.ID,
+		Type:              rec.Type,
+		Title:             rec.Title,
+		Summary:           rec.Summary,
+		State:             rec.State,
+		ParentID:          rec.ParentID,
+		ChildrenCount:     len(childRefs),
+		OpenChildrenCount: openCount,
+	}, nil
+}
+
 // List returns record references based on options.
 func (s *Service) List(ctx context.Context, tenantID string, opts ListRecordsOptions) ([]RecordRef, error) {
 	return s.records.List(ctx, tenantID, opts)
