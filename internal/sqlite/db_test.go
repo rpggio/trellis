@@ -2,6 +2,8 @@ package sqlite
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,7 +13,8 @@ import (
 func NewTestDB(t *testing.T) *DB {
 	t.Helper()
 
-	db, err := New(":memory:")
+	safeName := strings.ReplaceAll(t.Name(), "/", "_")
+	db, err := New(fmt.Sprintf("file:%s?mode=memory&cache=shared", safeName))
 	require.NoError(t, err, "failed to create test database")
 
 	err = db.RunMigrations()

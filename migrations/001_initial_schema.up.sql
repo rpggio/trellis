@@ -95,7 +95,6 @@ CREATE INDEX idx_created_at ON activity_log(created_at);
 
 -- Full-text search (SQLite FTS5)
 CREATE VIRTUAL TABLE records_fts USING fts5(
-    record_id UNINDEXED,
     title,
     summary,
     body,
@@ -105,8 +104,8 @@ CREATE VIRTUAL TABLE records_fts USING fts5(
 
 -- Triggers to keep FTS index synchronized
 CREATE TRIGGER records_ai AFTER INSERT ON records BEGIN
-    INSERT INTO records_fts(rowid, record_id, title, summary, body)
-    VALUES (new.rowid, new.id, new.title, new.summary, new.body);
+    INSERT INTO records_fts(rowid, title, summary, body)
+    VALUES (new.rowid, new.title, new.summary, new.body);
 END;
 
 CREATE TRIGGER records_ad AFTER DELETE ON records BEGIN
@@ -114,9 +113,10 @@ CREATE TRIGGER records_ad AFTER DELETE ON records BEGIN
 END;
 
 CREATE TRIGGER records_au AFTER UPDATE ON records BEGIN
-    UPDATE records_fts
-    SET title = new.title, summary = new.summary, body = new.body
-    WHERE rowid = new.rowid;
+    INSERT INTO records_fts(records_fts, rowid, title, summary, body)
+    VALUES('delete', old.rowid, old.title, old.summary, old.body);
+    INSERT INTO records_fts(rowid, title, summary, body)
+    VALUES (new.rowid, new.title, new.summary, new.body);
 END;
 
 -- API keys for authentication
