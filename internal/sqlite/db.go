@@ -3,10 +3,8 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 
+	"github.com/ganot/threds-mcp/migrations"
 	_ "modernc.org/sqlite"
 )
 
@@ -33,13 +31,7 @@ func New(dataSourceName string) (*DB, error) {
 // RunMigrations runs the migrations directly (for testing)
 // In production, migrations should be run via the migrate CLI or embed package
 func (db *DB) RunMigrations() error {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return fmt.Errorf("failed to locate migration path")
-	}
-	rootDir := filepath.Dir(filepath.Dir(filepath.Dir(filename)))
-	migrationPath := filepath.Join(rootDir, "migrations", "001_initial_schema.up.sql")
-	migration, err := os.ReadFile(migrationPath)
+	migration, err := migrations.FS.ReadFile("001_initial_schema.up.sql")
 	if err != nil {
 		return fmt.Errorf("failed to read migrations: %w", err)
 	}

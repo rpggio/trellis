@@ -2,6 +2,36 @@
 
 An MCP server providing record-based reasoning memory for design conversations.
 
+## Configuration
+
+Configuration can be provided via environment variables or a YAML file.
+
+Environment variables:
+
+- `THREDS_CONFIG_PATH`: path to YAML config file (optional)
+- `THREDS_SERVER_HOST`: server host (default `0.0.0.0`)
+- `THREDS_SERVER_PORT`: server port (default `8080`)
+- `THREDS_DB_PATH`: SQLite database path (default `threds.db`)
+- `THREDS_LOG_LEVEL`: `debug`, `info`, `warn`, `error` (default `info`)
+
+Sample YAML:
+
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 8080
+db:
+  path: "threds.db"
+log:
+  level: "info"
+```
+
+## Run
+
+```bash
+go run ./cmd/server
+```
+
 ## Tests
 
 Run unit tests:
