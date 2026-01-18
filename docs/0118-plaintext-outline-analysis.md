@@ -4,13 +4,76 @@
 
 ## Executive Summary
 
-This document analyzes how to reduce token cost when returning record trees to chat agents. The key insight is that agents primarily need just enough information to **identify** and **navigate** records—not full structural metadata. A plaintext outline format can cut token usage by 60-80% for listing/orientation commands while remaining highly parseable.
+This document analyzes how to reduce token cost when returning record references to chat agents. The existing API already separates full records (with bodies) from lightweight references (id, title, summary, state). This analysis proposes a **plaintext outline format** for returning those references, cutting token usage by ~50% compared to JSON.
 
 ---
 
-## Current State: JSON Record References
+## Record Content Model
 
-The current `RecordRef` structure (from the API spec):
+Records are self-contained markdown documents of 1-7 paragraphs. They contain substantive reasoning, not simple statements.
+
+### Example: A Question Record
+
+**Title**: Cache invalidation approach
+
+**Summary**: Leaning toward event-driven invalidation with TTL fallback. Need to resolve pub/sub infrastructure question.
+
+**Body**:
+```markdown
+We need to invalidate cached API responses when underlying data changes. The current approach (fixed 5-minute TTL) causes unacceptable staleness for inventory data.
+
+## Options Evaluated
+
+**TTL-only**: Simple but can't meet the 30-second freshness requirement without destroying cache hit rates.
+
+**Event-driven**: Database triggers publish invalidation events. Accurate but requires Redis pub/sub, which we don't currently run.
+
+**Hybrid**: Short TTL (60s) plus event-driven early invalidation. Gracefully degrades if pub/sub fails.
+
+## Current Thinking
+
+The hybrid approach seems right. It gives us the accuracy of event-driven invalidation while failing safe to TTL behavior. Main blocker: we need to decide whether to add Redis pub/sub to the stack (see child question).
+
+## Open Threads
+
+- Child question on Redis pub/sub infrastructure is still open
+- Haven't yet estimated implementation effort for the hybrid approach
+```
+
+### Example: A Conclusion Record
+
+**Title**: Use hybrid cache invalidation
+
+**Summary**: Decided on 60-second TTL with event-driven early invalidation. Redis pub/sub approved in R015.
+
+**Body**:
+```markdown
+We're implementing hybrid cache invalidation: 60-second TTL as the baseline, with event-driven invalidation for early expiry when data changes.
+
+## Decision Rationale
+
+The hybrid approach won because:
+
+1. **Meets freshness requirements**: Event-driven invalidation typically fires within 2 seconds of a write
+2. **Fails gracefully**: If pub/sub goes down, we degrade to 60-second staleness rather than serving indefinitely stale data
+3. **Infrastructure approved**: Redis pub/sub was approved as part of R015 (session caching decision)
+
+## Implementation Notes
+
+- Database triggers on `products`, `inventory`, and `pricing` tables
+- Cache keys follow pattern `api:v1:{endpoint}:{params_hash}`
+- Invalidation publishes to channel `cache:invalidate` with key pattern
+
+## What This Supersedes
+
+This replaces the fixed 5-minute TTL approach. The TTL-only option was rejected because it couldn't meet freshness requirements. Pure event-driven was rejected due to brittleness concerns.
+```
+
+---
+
+## Current State: JSON References
+
+The `RecordRef` structure:
 
 ```typescript
 interface RecordRef {
@@ -25,7 +88,7 @@ interface RecordRef {
 }
 ```
 
-Example JSON output for `list_records()` with 3 records:
+Example JSON for `list_records()`:
 
 ```json
 {
@@ -33,30 +96,30 @@ Example JSON output for `list_records()` with 3 records:
     {
       "id": "R001",
       "type": "question",
-      "title": "Caching strategy",
-      "summary": "How should we implement caching for the API layer?",
+      "title": "Cache invalidation approach",
+      "summary": "Leaning toward event-driven invalidation with TTL fallback. Need to resolve pub/sub infrastructure question.",
       "state": "OPEN",
-      "parent_id": null,
-      "children_count": 3,
-      "open_children_count": 2
+      "parent_id": "R000",
+      "children_count": 2,
+      "open_children_count": 1
     },
     {
-      "id": "R007",
+      "id": "R002",
       "type": "question",
-      "title": "Redis vs Memcached",
-      "summary": "Should we use Redis or Memcached for our caching needs?",
+      "title": "Redis pub/sub for cache invalidation",
+      "summary": "Should we add Redis pub/sub to support event-driven cache invalidation? Evaluating ops complexity vs benefits.",
       "state": "OPEN",
       "parent_id": "R001",
-      "children_count": 1,
+      "children_count": 0,
       "open_children_count": 0
     },
     {
-      "id": "R012",
+      "id": "R003",
       "type": "conclusion",
-      "title": "Redis selected",
-      "summary": "Redis chosen for persistence and data structure support.",
+      "title": "Use hybrid cache invalidation",
+      "summary": "Decided on 60-second TTL with event-driven early invalidation. Redis pub/sub approved in R015.",
       "state": "RESOLVED",
-      "parent_id": "R007",
+      "parent_id": "R001",
       "children_count": 0,
       "open_children_count": 0
     }
@@ -64,13 +127,13 @@ Example JSON output for `list_records()` with 3 records:
 }
 ```
 
-**Token cost**: ~180 tokens for this small example.
+**Token cost**: ~250 tokens
 
 ---
 
 ## Proposed: Plaintext Outline Format
 
-### Core Format
+### Format
 
 ```
 [id] (state) Title
@@ -82,379 +145,246 @@ Example JSON output for `list_records()` with 3 records:
 
 ### Encoding Rules
 
-1. **ID**: Bracketed at line start: `[R001]`
-2. **State**: Parenthesized after ID: `(OPEN)`, `(LATER)`, `(RESOLVED)`, `(DISCARDED)`
-3. **Title**: Remainder of the ID line
-4. **Summary**: Indented on the following line(s)
-5. **Hierarchy**: Indentation (2 spaces per level)
-6. **Type**: Omitted by default (see "What the Agent Needs" below)
+1. **ID**: Bracketed at line start
+2. **State**: Single letter in parens — `(O)` `(L)` `(R)` `(D)`
+3. **Title**: Remainder of header line
+4. **Summary**: Indented on following line(s)
+5. **Hierarchy**: 2-space indentation per level
+6. **Separator**: Blank line between siblings
 
 ### Same Data in Plaintext
 
 ```
-[R001] (OPEN) Caching strategy
-  How should we implement caching for the API layer?
+[R001] (O) Cache invalidation approach
+  Leaning toward event-driven invalidation with TTL fallback.
+  Need to resolve pub/sub infrastructure question.
 
-  [R007] (OPEN) Redis vs Memcached
-    Should we use Redis or Memcached for our caching needs?
+  [R002] (O) Redis pub/sub for cache invalidation
+    Should we add Redis pub/sub to support event-driven cache
+    invalidation? Evaluating ops complexity vs benefits.
 
-    [R012] (RESOLVED) Redis selected
-      Redis chosen for persistence and data structure support.
+  [R003] (R) Use hybrid cache invalidation
+    Decided on 60-second TTL with event-driven early invalidation.
+    Redis pub/sub approved in R015.
 ```
 
-**Token cost**: ~65 tokens (~64% reduction)
+**Token cost**: ~110 tokens (~56% reduction)
 
 ---
 
-## Which API Commands Benefit?
+## What the Agent Needs in References
 
-### High Impact (Use Plaintext Outline)
+For navigation and selection, the agent needs to identify records and decide which to activate:
 
-| Command | Current Output | Benefit |
-|---------|---------------|---------|
-| `get_project_overview` | Arrays of RecordRef | Returns root_records, open_records, later_records—all ideal for outline |
-| `list_records` | Array of RecordRef | Primary listing command |
-| `search_records` | Array of RecordRef + snippets | Can embed snippet in summary line |
+| Attribute | Include | Notes |
+|-----------|---------|-------|
+| **id** | ✅ | Required for `activate(id)` |
+| **title** | ✅ | Primary identification |
+| **summary** | ✅ | Enables selection without loading body |
+| **state** | ✅ | OPEN vs RESOLVED affects relevance |
+| **parent_id** | ❌ | Implicit via indentation |
+| **type** | ❌ | Inferrable; rarely affects decisions |
+| **children_count** | ❌ | Visible in outline structure |
+| **open_children_count** | ⚠️ | Useful as suffix: `(O+2)` |
 
-### Medium Impact (Use Simplified JSON or Plaintext)
+---
+
+## Which Commands Benefit
+
+### High Impact — Use Plaintext
 
 | Command | Notes |
 |---------|-------|
-| `activate` → `ContextBundle.children.other` | Non-OPEN children returned as refs |
-| `activate` → `ContextBundle.grandchildren` | All grandchildren as refs |
+| `list_records` | Primary listing; multiple refs |
+| `get_project_overview` | Returns categorized ref lists |
+| `search_records` | Returns matching refs + snippets |
 
-### Low Impact (Keep JSON)
+### Medium Impact — Use Plaintext
 
-| Command | Why |
-|---------|-----|
-| `activate` → target, parent, open children | Full content needed—no shortcut |
-| `create_record` / `update_record` responses | Returns single record, JSON overhead minimal |
-| `sync_session` | Change objects need structured diffs |
-| `get_record_diff` | Diff format is inherently structured |
+| Command | Notes |
+|---------|-------|
+| `activate` → non-OPEN children | Refs only |
+| `activate` → grandchildren | Refs only |
 
----
+### Low Impact — Keep JSON
 
-## What Record Attributes Does the Agent Actually Need?
-
-### For Navigation/Selection (Listing)
-
-| Attribute | Needed? | Rationale |
-|-----------|---------|-----------|
-| **id** | ✅ Essential | Required to activate/reference |
-| **title** | ✅ Essential | Primary identification |
-| **summary** | ✅ Essential | Context for selection |
-| **state** | ✅ Essential | Determines relevance (OPEN vs RESOLVED) |
-| **parent_id** | ⚠️ Implicit | Hierarchy shown via indentation |
-| **type** | ❌ Optional | Rarely affects agent decision-making |
-| **children_count** | ❌ Optional | Visible from outline structure |
-| **open_children_count** | ⚠️ Useful | Could add as suffix: `(OPEN, 2 open)` |
-
-### For Reasoning (Full Record)
-
-When actually working with a record, the agent needs the full `Record` object including `body`. This is already handled by `activate()` returning full content for target + parent + OPEN children.
-
-### Recommendation: Minimal Reference Format
-
-For listings, include only:
-- **id**: Always
-- **state**: Always
-- **title**: Always
-- **summary**: Always
-- **open_children_count**: Only if > 0, as suffix
-
-Omit:
-- **type**: Agent can infer from context or title
-- **parent_id**: Shown by indentation
-- **children_count**: Total count rarely useful
+| Command | Notes |
+|---------|-------|
+| `activate` → target, parent, OPEN children | Full bodies needed anyway |
+| `create_record` / `update_record` | Single record response |
+| `sync_session` | Structured change objects |
 
 ---
 
 ## Token Savings Estimates
 
-### Assumptions
+### Per-Reference Cost
 
-- Average title: 5 tokens
-- Average summary: 15 tokens
-- JSON structural overhead per record: ~25 tokens (keys, braces, quotes, colons)
-- Plaintext overhead per record: ~5 tokens (brackets, parens, newlines)
+| Format | Tokens | Overhead |
+|--------|--------|----------|
+| JSON RecordRef | ~70 | ~30 (keys, braces, quotes) |
+| Plaintext | ~35 | ~8 (brackets, parens, newlines) |
 
-### Per-Record Savings
+### Scenario Estimates
 
-| Format | Tokens/Record | Overhead |
-|--------|--------------|----------|
-| Full JSON RecordRef | ~50 tokens | ~25 tokens |
-| Plaintext outline | ~25 tokens | ~5 tokens |
-
-**Savings**: ~50% per record
-
-### Realistic Scenarios
-
-| Scenario | Records | JSON Tokens | Plaintext Tokens | Savings |
-|----------|---------|-------------|------------------|---------|
-| Project overview (10 open, 5 later, 3 root) | 18 refs | ~900 | ~450 | 50% |
-| Large search result | 20 refs | ~1000 | ~500 | 50% |
-| Deep tree listing (3 levels) | 30 refs | ~1500 | ~600 | 60% |
-| Context bundle (grandchildren) | 15 refs | ~750 | ~375 | 50% |
-
-### Compound Savings
-
-A typical session might call `get_project_overview` + `list_records` + `search_records` before activating. With 50+ refs returned across these calls, plaintext could save 500-1000 tokens per orientation phase.
+| Scenario | Refs | JSON | Plaintext | Savings |
+|----------|------|------|-----------|---------|
+| Small project overview | 10 | ~700 | ~350 | 50% |
+| Medium project overview | 25 | ~1750 | ~875 | 50% |
+| Search results | 15 | ~1050 | ~525 | 50% |
+| Context bundle children | 8 | ~560 | ~280 | 50% |
 
 ---
 
-## Extended Format Options
+## Format Options
 
-### Option A: Minimal (Recommended)
-
-```
-[R001] (OPEN) Caching strategy
-  How should we implement caching for the API layer?
-```
-
-### Option B: With Open Children Count
+### Basic
 
 ```
-[R001] (OPEN+2) Caching strategy
-  How should we implement caching for the API layer?
+[R001] (O) Cache invalidation approach
+  Leaning toward event-driven invalidation with TTL fallback.
 ```
 
-The `+2` suffix indicates 2 open children—useful for deciding where to dive deeper.
-
-### Option C: With Type
+### With Open Children Count
 
 ```
-[R001] question (OPEN) Caching strategy
-  How should we implement caching for the API layer?
+[R001] (O+2) Cache invalidation approach
+  Leaning toward event-driven invalidation with TTL fallback.
 ```
 
-Only if type is genuinely useful. In practice, titles like "Caching strategy" (a question) vs "Redis selected" (a conclusion) are self-evident.
-
-### Option D: Search Results with Snippets
+### Search Results with Snippet
 
 ```
-[R007] (OPEN) Redis vs Memcached
-  Should we use Redis or Memcached for caching?
-  > ...considering **Redis** for its persistence features...
+[R001] (O) Cache invalidation approach
+  Leaning toward event-driven invalidation with TTL fallback.
+  > ...considering **Redis pub/sub** for event delivery...
 ```
 
-The `>` prefix marks the matching snippet, with highlights in bold.
+### Minimal (Titles Only)
+
+For maximum compression when summaries aren't needed:
+
+```
+[R001] (O) Cache invalidation approach
+  [R002] (O) Redis pub/sub for cache invalidation
+  [R003] (R) Use hybrid cache invalidation
+```
 
 ---
 
-## Additional Token-Saving Techniques
+## Additional Optimizations
 
-### 1. State Abbreviations
+### 1. Omit Summaries for Closed Records
 
-```
-(O) = OPEN
-(L) = LATER
-(R) = RESOLVED
-(D) = DISCARDED
-```
-
-Savings: ~3 tokens per record
-
-Plaintext becomes:
-```
-[R001] (O) Caching strategy
-  How should we implement caching?
-```
-
-### 2. ID Shortening
-
-If IDs are always `Rn` format, drop the prefix in listings:
+RESOLVED and DISCARDED records are less likely to be activated:
 
 ```
-[1] (O) Caching strategy
+[R003] (R) Use hybrid cache invalidation
+[R004] (D) TTL-only approach — rejected
 ```
 
-Or use implicit numbering within the response (risky if agent needs to reference later).
-
-### 3. Summary Truncation
-
-Limit summaries to ~50 characters in listings. Full summary available on activation.
+### 2. Section Headers for Overview
 
 ```
-[R001] (O) Caching strategy
-  How should we implement caching for the...
+## OPEN (3)
+
+[R001] (O+1) Cache invalidation approach
+  Leaning toward event-driven with TTL fallback.
+
+[R005] (O) API rate limiting
+  Evaluating token bucket vs sliding window.
+
+## LATER (1)
+
+[R010] (L) Performance benchmarks
+  Blocked on staging environment.
+
+## RESOLVED (2)
+
+[R003] (R) Use hybrid cache invalidation
+[R015] (R) Redis infrastructure approved
 ```
 
-### 4. Deferred Loading Annotations
+### 3. Depth Truncation
 
-Mark records that have more detail available:
-
-```
-[R001] (O) Caching strategy [+body]
-  How should we implement caching?
-```
-
-The `[+body]` signals that activating will load substantial content.
-
-### 5. Flat vs Tree Responses
-
-For `get_project_overview`, the current spec returns three separate arrays (`root_records`, `open_records`, `later_records`). These could be combined into a single annotated outline:
+For deep trees, collapse beyond depth 2:
 
 ```
-# OPEN
-[R001] (O) Caching strategy
-  How should we implement caching?
+[R001] (O) Cache invalidation approach
+  ...
 
-  [R007] (O) Redis vs Memcached
-    Should we use Redis or Memcached?
-
-[R022] (O) API versioning
-  How should we version the API?
-
-# LATER
-[R015] (L) Scale requirements
-  Blocked on traffic projections.
+  [R002] (O) Redis pub/sub for cache invalidation
+    ...
+    [+2 children]
 ```
 
-### 6. Contextual Omission
-
-In `ContextBundle`, the agent doesn't need summaries for records it already activated. The API could return:
+### 4. Response Envelope
 
 ```
-children:
-  [R012] (R) Redis selected
-  [R013] (O) Cache invalidation strategy
-    When and how should we invalidate cache entries?
+session: sess_abc | tick: 147
+
+[R001] (O) Cache invalidation approach
+  ...
 ```
-
-Only OPEN children (which the agent will reason about) get summaries.
-
-### 7. Response Envelope Minimization
-
-Current JSON responses include metadata:
-
-```json
-{
-  "success": true,
-  "session_id": "sess_abc123",
-  "results": [...]
-}
-```
-
-For listing commands, the envelope could be minimal or omitted:
-
-```
-session: sess_abc123
-
-[R001] (O) Caching strategy
-...
-```
-
-### 8. Tick/Timestamp Omission in Listings
-
-The agent rarely needs `modified` timestamps in listings—only when reviewing history. Omit from standard responses.
 
 ---
 
-## Implementation Recommendations
+## Grammar
 
-### Phase 1: Core Plaintext Format
+```
+outline   := record*
+record    := header summary? children?
+header    := indent "[" id "]" " " state " " title "\n"
+state     := "(" ("O"|"L"|"R"|"D") ("+" digits)? ")"
+summary   := (indent+2 text "\n")+
+children  := record+
+indent    := ("  ")*
+```
 
-Implement plaintext outline for:
+---
+
+## Implementation
+
+### Phase 1
+
+Apply plaintext to listing commands:
 - `list_records`
-- `get_project_overview` (for record arrays)
+- `get_project_overview`
 - `search_records`
 
-Use state abbreviations `(O/L/R/D)` and minimal format.
+### Phase 2
 
-### Phase 2: Context Bundle Optimization
+Apply to reference sections of `activate()`:
+- `children.other`
+- `grandchildren`
 
-Apply plaintext to:
-- `ContextBundle.children.other` (non-OPEN children)
-- `ContextBundle.grandchildren`
+### Phase 3 (Optional)
 
-Keep full JSON for target, parent, and OPEN children.
-
-### Phase 3: Response Format Negotiation
-
-Add optional parameter to control verbosity:
+Add format parameter for backward compatibility:
 
 ```typescript
-list_records(params: {
-  format?: "full" | "compact" | "minimal"  // default: compact
-})
+list_records({ format?: "json" | "outline" })
 ```
-
-- `full`: Current JSON
-- `compact`: Plaintext outline with summaries
-- `minimal`: Plaintext with IDs, states, titles only (no summaries)
 
 ---
 
-## Parsing Considerations
-
-The plaintext format is trivially parseable:
-
-```javascript
-// Regex patterns
-const RECORD_LINE = /^\s*\[(\w+)\]\s*\(([OLRD])\)\s*(.+)$/;
-const SUMMARY_LINE = /^\s{2,}([^[\n].*)$/;
-
-// Parse yields:
-// { id: "R001", state: "O", title: "Caching strategy", indent: 0 }
-// { summary: "How should we implement caching?" }
-```
-
-For LLM consumption, parsing isn't even necessary—the format is human-readable and can be processed as natural language context.
-
----
-
-## Risks and Mitigations
+## Risks
 
 | Risk | Mitigation |
 |------|------------|
-| Format ambiguity | Strict grammar; no user content in structural positions |
-| Title containing `]` or `(` | Titles are user content—escape or accept as-is |
-| Summary containing newlines | Indent continuation lines; or truncate to single line |
-| State abbreviation confusion | Document clearly; O/L/R/D are unambiguous |
-| Loss of information | Keep full JSON as opt-in fallback |
+| Title contains `]` or `(` | Accept as-is; unambiguous in context |
+| Multi-line summary | Continue at same indent |
+| Agent expects JSON | Document format; offer `format=json` fallback |
 
 ---
 
 ## Conclusion
 
-A plaintext outline format for record trees can reduce token costs by 50-60% for listing and orientation commands. The key principles are:
+The plaintext outline format reduces reference payload size by ~50% compared to JSON. The format is:
 
-1. **Hierarchy through indentation** replaces explicit `parent_id`
-2. **State abbreviations** (`O/L/R/D`) minimize per-record overhead
-3. **Omit rarely-used fields** (`type`, `children_count`) from listings
-4. **Keep JSON for mutations and full content** where structure matters
+- **Human-readable**: No parsing required for LLM consumption
+- **Parseable**: Simple regex for programmatic use
+- **Hierarchical**: Indentation replaces explicit `parent_id`
+- **Compact**: Single-letter states, minimal punctuation
 
-The format is simple enough that agents can parse it programmatically or consume it as natural language context—both work.
-
----
-
-## Appendix: Full Plaintext Grammar
-
-```
-outline      := record*
-record       := header summary? children?
-header       := indent "[" id "]" state title "\n"
-summary      := indent{+2} text "\n"
-children     := record+
-indent       := ("  ")*
-id           := [A-Za-z0-9]+
-state        := "(" ("O"|"L"|"R"|"D") ("+" digit+)? ")"
-title        := [^\n]+
-text         := [^\n]+
-```
-
-Example matching the grammar:
-
-```
-[R001] (O+2) Caching strategy
-  How should we implement caching for the API layer?
-
-  [R007] (O) Redis vs Memcached
-    Should we use Redis or Memcached?
-
-    [R012] (R) Redis selected
-      Chosen for persistence and data structure support.
-
-  [R013] (O) Cache invalidation
-    When and how should we invalidate cache entries?
-```
+Primary use: listing commands (`list_records`, `get_project_overview`, `search_records`) where multiple references are returned.
