@@ -2,6 +2,34 @@
 
 An MCP server providing record-based reasoning memory for design conversations.
 
+## Quick Start (Mac)
+
+For the fastest setup experience on macOS:
+
+```bash
+./scripts/quick-start.sh
+```
+
+This will deploy, start, populate with sample data, and register the server with Claude Desktop in one go.
+
+Or follow individual steps:
+
+```bash
+# 1. Deploy a standalone server
+./scripts/deploy-standalone.sh ~/my-threds-server
+
+# 2. Start the server
+cd ~/my-threds-server && ./start.sh
+
+# 3. Generate sample data (optional)
+./scripts/generate-sample-data.sh ~/my-threds-server
+
+# 4. Register with Claude Desktop
+./scripts/register-claude-desktop.sh ~/my-threds-server
+```
+
+See [scripts/README.md](scripts/README.md) for detailed documentation.
+
 ## Configuration
 
 Configuration can be provided via environment variables or a YAML file.
