@@ -21,3 +21,9 @@ Run integration tests (services + SQLite):
 ```bash
 go test ./test/integration -v
 ```
+
+Run functional HTTP tests:
+
+```bash
+go test ./test/functional -v
+```

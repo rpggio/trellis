@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -60,6 +61,25 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if apiErr, ok := err.(interface {
+			CodeValue() string
+			MessageValue() string
+			DetailsValue() any
+			RecoveryHintValue() string
+		}); ok {
+			data := map[string]any{
+				"code":          apiErr.CodeValue(),
+				"message":       apiErr.MessageValue(),
+				"details":       apiErr.DetailsValue(),
+				"recovery_hint": apiErr.RecoveryHintValue(),
+			}
+			WriteError(w, req.ID, ErrInternal, apiErr.MessageValue(), data)
+			return
+		}
+		if strings.HasPrefix(err.Error(), "unknown method") {
+			WriteError(w, req.ID, ErrMethodNotFound, "method not found", nil)
 			return
 		}
 		WriteError(w, req.ID, ErrInternal, err.Error(), nil)

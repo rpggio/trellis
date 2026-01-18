@@ -20,6 +20,22 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }
 
+func (e *APIError) CodeValue() string {
+	return e.Code
+}
+
+func (e *APIError) MessageValue() string {
+	return e.Message
+}
+
+func (e *APIError) DetailsValue() any {
+	return e.Details
+}
+
+func (e *APIError) RecoveryHintValue() string {
+	return e.RecoveryHint
+}
+
 // MapError maps domain errors to MCP error codes.
 func MapError(err error) *APIError {
 	if err == nil {
