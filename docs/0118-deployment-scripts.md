@@ -67,50 +67,54 @@ deployment-dir/
 
 **API Usage:**
 - Uses JSON-RPC over HTTP
-- Bearer token authentication
+- Auth disabled for local deployments (no bearer header required)
 - Validates server connectivity before generating data
 
 ### 3. `register-claude-desktop.sh`
 
-**Purpose:** Automatically register server with Claude Desktop
+**Purpose:** Print UI registration steps for Claude Desktop
 
 **Features:**
 - Validates deployment directory
-- Locates Claude config file automatically
-- Creates backup before modification
-- Uses jq or Python for JSON manipulation (graceful fallback)
+- Reads server URL from `.env`
+- Checks Claude Desktop version
+- Prints exact fields to enter in the UI (https required)
 - Generates unique server names with optional suffix
-- Provides clear next steps after registration
 
 **Server Naming:**
 - Pattern: `threds-<suffix>`
 - Default suffix: random 8-char hex
 - Custom suffix: user-provided (e.g., `my-project`)
 
-**Safety:**
-- Creates timestamped backup of Claude config
-- Validates JSON before writing
-- Clear rollback instructions
+**Notes:**
+- Remote HTTP MCP servers are added through Claude Desktop UI
+- `claude_desktop_config.json` is for local stdio MCP servers only
+- Claude Desktop UI only exposes OAuth fields (no custom headers)
 
 ### 4. `quick-start.sh`
 
 **Purpose:** One-command setup from zero to working MCP server
 
 **Interactive Workflow:**
-1. Prompts for deployment directory
-2. Prompts for optional server name
-3. Asks about sample data generation
-4. Executes full pipeline:
+1. Prompts for deployment directory (defaults to a random `/tmp` subdir)
+2. Prompts for server port (defaults to a random free port)
+3. Auto-generates a connector name (no prompt)
+4. Asks about sample data generation
+5. Executes full pipeline:
    - Deploy
    - Start (with health check)
    - Generate sample data (optional)
-   - Register with Claude Desktop
-5. Displays success banner with next steps
+   - Print UI registration steps for Claude Desktop (https required)
+6. Displays success banner with next steps
 
 **Health Check:**
 - Waits up to 30 seconds for server readiness
 - Polls HTTP endpoint
 - Fails gracefully with clear error message
+
+**Process Model:**
+- Server remains attached to the quick-start process
+- Ctrl-C stops the server and exits the script
 
 ## Design Decisions
 
@@ -171,7 +175,7 @@ Would need:
 **Extensibility:**
 - REGISTER.md includes instructions for other clients
 - HTTP MCP endpoint is client-agnostic
-- Bearer token auth is standard
+- Bearer token auth is supported; local deployments default to auth disabled
 
 ## Usage Patterns
 
@@ -274,19 +278,9 @@ Priority order:
 
 Location: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-Structure:
-```json
-{
-  "mcpServers": {
-    "server-name": {
-      "url": "http://127.0.0.1:8080/mcp",
-      "headers": {
-        "Authorization": "Bearer API_KEY_HERE"
-      }
-    }
-  }
-}
-```
+This file is for **local stdio MCP servers only**. Remote HTTP MCP servers
+must be added via the Claude Desktop UI (Settings → Extensions/Connectors →
+Add Custom Connector).
 
 ## Testing
 
@@ -308,7 +302,6 @@ sleep 3
 source /tmp/test-deploy/.env
 curl -X POST http://127.0.0.1:8080/rpc \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $THREDS_API_KEY" \
   -d '{"jsonrpc":"2.0","id":1,"method":"list_projects","params":{}}'
 
 # 5. Generate sample data
@@ -317,7 +310,6 @@ curl -X POST http://127.0.0.1:8080/rpc \
 # 6. Query sample data
 curl -X POST http://127.0.0.1:8080/rpc \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $THREDS_API_KEY" \
   -d '{"jsonrpc":"2.0","id":1,"method":"get_project_overview","params":{}}'
 
 # 7. Register (dry run - backup and inspect)

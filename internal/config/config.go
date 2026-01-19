@@ -13,6 +13,7 @@ type Config struct {
 	Server ServerConfig `yaml:"server"`
 	DB     DBConfig     `yaml:"db"`
 	Log    LogConfig    `yaml:"log"`
+	Auth   AuthConfig   `yaml:"auth"`
 }
 
 type ServerConfig struct {
@@ -28,6 +29,10 @@ type LogConfig struct {
 	Level string `yaml:"level"`
 }
 
+type AuthConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
 // Load reads configuration from an optional YAML file and environment variables.
 func Load() (Config, error) {
 	cfg := Config{
@@ -40,6 +45,9 @@ func Load() (Config, error) {
 		},
 		Log: LogConfig{
 			Level: "info",
+		},
+		Auth: AuthConfig{
+			Enabled: true,
 		},
 	}
 
@@ -64,6 +72,13 @@ func Load() (Config, error) {
 	}
 	if level := os.Getenv("THREDS_LOG_LEVEL"); level != "" {
 		cfg.Log.Level = level
+	}
+	if enabled := os.Getenv("THREDS_AUTH_ENABLED"); enabled != "" {
+		value, err := strconv.ParseBool(enabled)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid THREDS_AUTH_ENABLED: %w", err)
+		}
+		cfg.Auth.Enabled = value
 	}
 
 	return cfg, nil

@@ -55,6 +55,9 @@ db:
 
 log:
   level: "info"
+
+auth:
+  enabled: false
 EOF
 
 # Create environment file
@@ -65,6 +68,7 @@ THREDS_SERVER_HOST=127.0.0.1
 THREDS_SERVER_PORT=8080
 THREDS_DB_PATH=$DEPLOY_DIR/data/threds.db
 THREDS_LOG_LEVEL=info
+THREDS_AUTH_ENABLED=false
 
 # API Key (keep secret!)
 THREDS_API_KEY=$API_KEY
@@ -74,20 +78,23 @@ EOF
 echo "💾 Initializing database..."
 sqlite3 "$DEPLOY_DIR/data/threds.db" <<SQL
 CREATE TABLE IF NOT EXISTS api_keys (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key_hash TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
-    key_hash TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used TIMESTAMP,
+    description TEXT
 );
 
-INSERT INTO api_keys (tenant_id, key_hash) VALUES ('default', '$API_KEY_HASH');
+INSERT OR IGNORE INTO api_keys (tenant_id, key_hash) VALUES ('default', '$API_KEY_HASH');
 SQL
 
 # Create start script
 cat > "$DEPLOY_DIR/start.sh" <<'STARTSCRIPT'
 #!/bin/bash
 cd "$(dirname "$0")"
+set -a
 source .env
+set +a
 exec ./bin/threds-server
 STARTSCRIPT
 chmod +x "$DEPLOY_DIR/start.sh"
@@ -125,6 +132,7 @@ Configuration is stored in:
 - `.env` - Environment variables and API key
 
 The API key is stored in `.env` as `THREDS_API_KEY`.
+Auth is disabled by default (`THREDS_AUTH_ENABLED=false`).
 
 ## Database
 
@@ -136,7 +144,6 @@ The SQLite database is located at `data/threds.db`.
 # Check if server is running
 curl -X POST http://127.0.0.1:8080/rpc \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(grep THREDS_API_KEY .env | cut -d= -f2)" \
   -d '{"jsonrpc":"2.0","id":1,"method":"list_projects","params":{}}'
 ```
 
@@ -146,35 +153,31 @@ See `REGISTER.md` for instructions on registering this server with various MCP c
 README
 
 # Create registration instructions
-cat > "$DEPLOY_DIR/REGISTER.md" <<REGISTER
+cat > "$DEPLOY_DIR/REGISTER.md" <<'REGISTER'
 # MCP Client Registration
 
 ## Claude Desktop (Mac)
 
-Edit or create: \`~/Library/Application Support/Claude/claude_desktop_config.json\`
+Remote HTTP servers must be added through the UI:
 
-Add this server configuration:
-\`\`\`json
-{
-  "mcpServers": {
-    "threds": {
-      "url": "http://127.0.0.1:8080/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY_HERE"
-      }
-    }
-  }
-}
-\`\`\`
+1. Open Claude Desktop
+2. Settings → Extensions (or Connectors)
+3. Add Custom Connector
+4. Fill in:
+   - Name: \`threds\`
+   - URL: \`https://YOUR_HTTPS_HOST/mcp\` (Claude Desktop requires https)
+   - OAuth Client ID / Secret: leave blank (auth disabled for local)
 
-Replace \`YOUR_API_KEY_HERE\` with the API key from \`.env\` file.
+For local development, use an HTTPS tunnel or reverse proxy that points to:
+`http://127.0.0.1:8080/mcp`.
+
+Note: \`claude_desktop_config.json\` is for local stdio MCP servers only.
 
 ## Claude Code CLI
 
 Add to your Claude Code configuration:
 \`\`\`bash
 claude-code config set mcp.servers.threds.url "http://127.0.0.1:8080/mcp"
-claude-code config set mcp.servers.threds.headers.Authorization "Bearer YOUR_API_KEY_HERE"
 \`\`\`
 
 ## Cline (VS Code Extension)
@@ -183,10 +186,7 @@ Edit Cline settings and add to MCP servers:
 \`\`\`json
 {
   "threds": {
-    "url": "http://127.0.0.1:8080/mcp",
-    "headers": {
-      "Authorization": "Bearer YOUR_API_KEY_HERE"
-    }
+    "url": "http://127.0.0.1:8080/mcp"
   }
 }
 \`\`\`
@@ -195,8 +195,7 @@ Edit Cline settings and add to MCP servers:
 
 Use these connection details:
 - URL: \`http://127.0.0.1:8080/mcp\`
-- Authentication: Bearer token in Authorization header
-- Token: (see \`.env\` file)
+- Authentication: Disabled for local deployments by default
 REGISTER
 
 echo ""
@@ -205,8 +204,8 @@ echo ""
 echo "📂 Deployment location: $DEPLOY_DIR"
 echo "🔑 API Key: $API_KEY"
 echo ""
-echo "⚠️  IMPORTANT: Save your API key securely!"
-echo "   It's also stored in: $DEPLOY_DIR/.env"
+echo "ℹ️  Auth is disabled by default for local deployments."
+echo "   The API key is stored in: $DEPLOY_DIR/.env (useful if you enable auth)"
 echo ""
 echo "🚀 To start the server:"
 echo "   cd $DEPLOY_DIR"

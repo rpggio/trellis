@@ -30,6 +30,14 @@ fi
 source "$DEPLOY_DIR/.env"
 API_KEY="$THREDS_API_KEY"
 BASE_URL="http://${THREDS_SERVER_HOST:-127.0.0.1}:${THREDS_SERVER_PORT:-8080}/rpc"
+AUTH_ENABLED="${THREDS_AUTH_ENABLED:-true}"
+
+use_auth=true
+case "$AUTH_ENABLED" in
+    false|FALSE|0|no|NO)
+        use_auth=false
+        ;;
+esac
 
 echo "🎨 Generating sample data for threds-mcp"
 echo ""
@@ -39,10 +47,16 @@ api_call() {
     local method="$1"
     local params="$2"
 
-    curl -s -X POST "$BASE_URL" \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $API_KEY" \
-        -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$method\",\"params\":$params}"
+    if [ "$use_auth" = true ]; then
+        curl -s -X POST "$BASE_URL" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_KEY" \
+            -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$method\",\"params\":$params}"
+    else
+        curl -s -X POST "$BASE_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$method\",\"params\":$params}"
+    fi
 }
 
 # Check if server is running
@@ -156,18 +170,24 @@ echo ""
 echo "List all projects:"
 echo "  curl -X POST $BASE_URL \\"
 echo "    -H 'Content-Type: application/json' \\"
-echo "    -H 'Authorization: Bearer $API_KEY' \\"
+if [ "$use_auth" = true ]; then
+    echo "    -H 'Authorization: Bearer $API_KEY' \\"
+fi
 echo "    -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"list_projects\",\"params\":{}}'"
 echo ""
 echo "Get project overview:"
 echo "  curl -X POST $BASE_URL \\"
 echo "    -H 'Content-Type: application/json' \\"
-echo "    -H 'Authorization: Bearer $API_KEY' \\"
+if [ "$use_auth" = true ]; then
+    echo "    -H 'Authorization: Bearer $API_KEY' \\"
+fi
 echo "    -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"get_project_overview\",\"params\":{}}'"
 echo ""
 echo "Search records:"
 echo "  curl -X POST $BASE_URL \\"
 echo "    -H 'Content-Type: application/json' \\"
-echo "    -H 'Authorization: Bearer $API_KEY' \\"
+if [ "$use_auth" = true ]; then
+    echo "    -H 'Authorization: Bearer $API_KEY' \\"
+fi
 echo "    -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"search_records\",\"params\":{\"query\":\"navigation\"}}'"
 echo ""

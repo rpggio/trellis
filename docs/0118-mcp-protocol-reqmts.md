@@ -22,6 +22,10 @@ Claude Desktop for Mac (v1.x+, Jan 2026) supports both **Local (stdio)** and **R
 * **Plan Requirement:** Limited to Pro, Max, Team, and Enterprise plans.
 * **Registration:** **MUST** be added through the UI. Navigate to **Settings > Extensions** (or **Connectors**) and click "Add Custom Connector".
 * **Constraint:** Claude Desktop will **not** connect to remote HTTP servers if they are configured directly in the `claude_desktop_config.json` file.
+* **Evidence:** Claude Code docs show `claude_desktop_config.json` examples using **stdio** (`command`, `args`, `type: "stdio"`) rather than HTTP URLs.
+* **HTTPS Requirement:** The Claude Desktop UI enforces `https://` URLs for remote connectors.
+* **Auth UI Limitation:** The connector UI only exposes OAuth Client ID/Secret fields (no custom headers).
+* **Local Dev Implication:** Authless servers are simplest for local connectors unless you implement OAuth.
 
 **B. Local/Bridged Servers (The "JSON" Way)**
 
@@ -41,8 +45,6 @@ Claude Desktop for Mac (v1.x+, Jan 2026) supports both **Local (stdio)** and **R
 
 ```
 
-
-
 ---
 
 #### 3. Minimal Server Requirements
@@ -61,3 +63,10 @@ To be a "Universal" Streamable HTTP server, your endpoint must:
 * **Response Codes:** Some users report that servers returning **HTTP 204 (No Content)** can cause connection timeouts in Claude Desktop; **HTTP 202 (Accepted)** is preferred for non-streaming notifications.
 * **Localhost Restrictions:** Claude Desktop may block `localhost` connections due to CORS. Using a tunnel (e.g., ngrok) is recommended for development.
 * **Discovery:** Servers must implement `list_tools` and `list_resources` discovery methods, or Claude will not show them in the chat interface.
+
+---
+
+#### Sources
+
+1. MCP Spec (2025-03-26): https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
+2. Claude Code MCP Docs (stdio config example): https://code.claude.com/docs/en/mcp

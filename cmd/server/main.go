@@ -65,8 +65,12 @@ func main() {
 
 	handler := mcp.NewHandler(projectSvc, recordSvc, sessionSvc, activitySvc)
 	resolver := &apiKeyResolver{db: db}
+	authMiddleware := transport.AuthMiddleware(resolver)
+	if !cfg.Auth.Enabled {
+		authMiddleware = transport.NoAuthMiddleware("default")
+	}
 
-	router := transport.NewServer(handler, transport.AuthMiddleware(resolver))
+	router := transport.NewServer(handler, authMiddleware)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

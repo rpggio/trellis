@@ -10,7 +10,8 @@ For the fastest setup experience on macOS:
 ./scripts/quick-start.sh
 ```
 
-This will deploy, start, populate with sample data, and register the server with Claude Desktop in one go.
+This will deploy, start, populate with sample data, and print Claude Desktop
+registration details in one go.
 
 Or follow individual steps:
 
@@ -24,11 +25,17 @@ cd ~/my-threds-server && ./start.sh
 # 3. Generate sample data (optional)
 ./scripts/generate-sample-data.sh ~/my-threds-server
 
-# 4. Register with Claude Desktop
+# 4. Prepare Claude Desktop registration (prints UI steps)
 ./scripts/register-claude-desktop.sh ~/my-threds-server
 ```
 
 See [scripts/README.md](scripts/README.md) for detailed documentation.
+
+Note: Claude Desktop registers remote HTTP MCP servers via the UI
+(Settings → Extensions/Connectors → Add Custom Connector). The
+`claude_desktop_config.json` file is for local stdio MCP servers only.
+Claude Desktop requires https URLs for connectors.
+Local deployment scripts disable auth by default.
 
 ## Configuration
 
@@ -41,6 +48,7 @@ Environment variables:
 - `THREDS_SERVER_PORT`: server port (default `8080`)
 - `THREDS_DB_PATH`: SQLite database path (default `threds.db`)
 - `THREDS_LOG_LEVEL`: `debug`, `info`, `warn`, `error` (default `info`)
+- `THREDS_AUTH_ENABLED`: `true` or `false` (default `true`)
 
 Sample YAML:
 
@@ -52,6 +60,8 @@ db:
   path: "threds.db"
 log:
   level: "info"
+auth:
+  enabled: true
 ```
 
 ## Run

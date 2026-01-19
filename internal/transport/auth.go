@@ -45,3 +45,13 @@ func AuthMiddleware(resolver TenantResolver) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+// NoAuthMiddleware injects a default tenant when auth is disabled.
+func NoAuthMiddleware(defaultTenant string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.WithValue(r.Context(), tenantKey{}, defaultTenant)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}

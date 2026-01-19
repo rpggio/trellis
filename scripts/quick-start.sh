@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Quick start script - deploys, starts, populates, and registers threds in one go
+# Quick start script - deploys, starts, populates, and prints registration details
 
 cat << "BANNER"
 ╔════════════════════════════════════════╗
@@ -9,25 +9,71 @@ cat << "BANNER"
 ╚════════════════════════════════════════╝
 BANNER
 
+SERVER_PID=""
+cleanup() {
+    if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" > /dev/null 2>&1; then
+        echo ""
+        echo "Stopping server..."
+        kill "$SERVER_PID" > /dev/null 2>&1 || true
+        wait "$SERVER_PID" > /dev/null 2>&1 || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
 echo ""
 echo "This script will:"
 echo "  1. Deploy a standalone threds-mcp server"
 echo "  2. Start the server"
 echo "  3. Generate sample data"
-echo "  4. Register with Claude Desktop"
+echo "  4. Print Claude Desktop registration details"
+echo ""
+echo "The server stays attached to this script. Press Ctrl-C to stop it."
 echo ""
 
-# Get deployment directory
-read -p "Enter deployment directory (e.g., ~/threds-server): " DEPLOY_DIR
+# Get deployment directory (default random /tmp path)
+if command -v openssl &> /dev/null; then
+    RAND_SUFFIX="$(openssl rand -hex 3)"
+else
+    RAND_SUFFIX="${RANDOM}${RANDOM}"
+fi
+DEFAULT_DEPLOY_DIR="/tmp/threds-mcp-$RAND_SUFFIX"
+while [ -e "$DEFAULT_DEPLOY_DIR" ]; do
+    DEFAULT_DEPLOY_DIR="/tmp/threds-mcp-${RANDOM}${RANDOM}"
+done
+
+read -p "Enter deployment directory (default $DEFAULT_DEPLOY_DIR): " DEPLOY_DIR
+DEPLOY_DIR="${DEPLOY_DIR:-$DEFAULT_DEPLOY_DIR}"
 DEPLOY_DIR="${DEPLOY_DIR/#\~/$HOME}"  # Expand tilde
 
-if [ -z "$DEPLOY_DIR" ]; then
-    echo "❌ Deployment directory required"
-    exit 1
-fi
+# Pick a random default port (first free in the ephemeral range)
+pick_random_port() {
+    local port
+    local i
+    for i in $(seq 1 50); do
+        port=$((49152 + RANDOM % 16384))
+        if ! lsof -i :"$port" > /dev/null 2>&1; then
+            echo "$port"
+            return 0
+        fi
+    done
+    port=49152
+    while lsof -i :"$port" > /dev/null 2>&1; do
+        port=$((port + 1))
+    done
+    echo "$port"
+}
 
-# Get optional server name
-read -p "Enter server name suffix (optional, press Enter for random): " NAME_SUFFIX
+DEFAULT_PORT="$(pick_random_port)"
+
+read -p "Enter server port (default $DEFAULT_PORT): " SERVER_PORT
+SERVER_PORT="${SERVER_PORT:-$DEFAULT_PORT}"
+
+# Auto-generate connector name suffix
+if command -v openssl &> /dev/null; then
+    NAME_SUFFIX="$(openssl rand -hex 4)"
+else
+    NAME_SUFFIX="$(date +%s)"
+fi
 
 # Ask about sample data
 read -p "Generate sample data? (Y/n): " GEN_SAMPLE
@@ -41,6 +87,11 @@ echo " Step 1: Deploying server"
 echo "════════════════════════════════════════"
 "$SCRIPT_DIR/deploy-standalone.sh" "$DEPLOY_DIR"
 
+if [ "$SERVER_PORT" != "8080" ]; then
+    sed -i '' "s/^  port: .*/  port: $SERVER_PORT/" "$DEPLOY_DIR/config.yaml"
+    sed -i '' "s/^THREDS_SERVER_PORT=.*/THREDS_SERVER_PORT=$SERVER_PORT/" "$DEPLOY_DIR/.env"
+fi
+
 echo ""
 echo "════════════════════════════════════════"
 echo " Step 2: Starting server"
@@ -53,7 +104,7 @@ echo "Server started (PID: $SERVER_PID)"
 # Wait for server to be ready
 echo "Waiting for server to be ready..."
 for i in {1..30}; do
-    if curl -s http://127.0.0.1:8080/rpc > /dev/null 2>&1; then
+    if curl -s "http://127.0.0.1:$SERVER_PORT/rpc" > /dev/null 2>&1; then
         echo "✅ Server is ready!"
         break
     fi
@@ -79,16 +130,10 @@ fi
 
 echo ""
 echo "════════════════════════════════════════"
-echo " Step 4: Registering with Claude Desktop"
+echo " Step 4: Preparing Claude Desktop registration"
 echo "════════════════════════════════════════"
-if [ -n "$NAME_SUFFIX" ]; then
-    "$SCRIPT_DIR/register-claude-desktop.sh" "$DEPLOY_DIR" "$NAME_SUFFIX"
-    SERVER_NAME="threds-$NAME_SUFFIX"
-else
-    "$SCRIPT_DIR/register-claude-desktop.sh" "$DEPLOY_DIR"
-    # Extract the server name from the config
-    SERVER_NAME=$(jq -r '.mcpServers | keys[] | select(startswith("threds-"))' "$HOME/Library/Application Support/Claude/claude_desktop_config.json" | tail -1)
-fi
+"$SCRIPT_DIR/register-claude-desktop.sh" "$DEPLOY_DIR" "$NAME_SUFFIX"
+SERVER_NAME="threds-$NAME_SUFFIX"
 
 echo ""
 echo "════════════════════════════════════════"
@@ -98,6 +143,7 @@ echo ""
 echo "📍 Deployment: $DEPLOY_DIR"
 echo "🖥️  Server:     Running (PID: $SERVER_PID)"
 echo "📡 MCP Name:   $SERVER_NAME"
+echo "🔌 Port:       $SERVER_PORT"
 echo ""
 echo "🎯 Next Steps:"
 echo ""
@@ -113,7 +159,7 @@ echo ""
 echo "   Stop server:   cd $DEPLOY_DIR && ./stop.sh"
 echo "   Start server:  cd $DEPLOY_DIR && ./start.sh"
 echo "   View logs:     cd $DEPLOY_DIR && tail -f nohup.out"
-echo "   API key:       cat $DEPLOY_DIR/.env | grep THREDS_API_KEY"
+echo "   API key:       cat $DEPLOY_DIR/.env | grep THREDS_API_KEY (if auth enabled)"
 echo ""
 echo "📚 Documentation:"
 echo "   • Server docs:  cat $DEPLOY_DIR/README.md"
@@ -122,3 +168,5 @@ echo "   • Scripts:      cat $SCRIPT_DIR/README.md"
 echo ""
 echo "Happy reasoning! 🧠"
 echo ""
+echo "Press Ctrl-C to stop the server and exit."
+wait "$SERVER_PID"

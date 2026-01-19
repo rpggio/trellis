@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# Automatically register threds-mcp with Claude Desktop on Mac
+# Print Claude Desktop registration steps for threds-mcp on Mac
 
 usage() {
     echo "Usage: $0 <deployment_directory> [server_name_suffix]"
     echo ""
-    echo "Registers the threds-mcp server with Claude Desktop for Mac."
+    echo "Prints UI steps to register threds-mcp with Claude Desktop for Mac."
     echo ""
     echo "Arguments:"
     echo "  deployment_directory  - Path to the deployed threds server"
@@ -41,103 +41,75 @@ fi
 
 # Load configuration
 source "$DEPLOY_DIR/.env"
-API_KEY="$THREDS_API_KEY"
 SERVER_HOST="${THREDS_SERVER_HOST:-127.0.0.1}"
 SERVER_PORT="${THREDS_SERVER_PORT:-8080}"
 SERVER_NAME="threds-${NAME_SUFFIX}"
+AUTH_ENABLED="${THREDS_AUTH_ENABLED:-true}"
 
-CLAUDE_CONFIG_DIR="$HOME/Library/Application Support/Claude"
-CLAUDE_CONFIG_FILE="$CLAUDE_CONFIG_DIR/claude_desktop_config.json"
+CLAUDE_APP_PLIST="/Applications/Claude.app/Contents/Info.plist"
+MIN_CLAUDE_VERSION="1.1.0"
 
-echo "🔧 Registering threds-mcp with Claude Desktop"
+version_ge() {
+    local IFS=.
+    local -a current=($1)
+    local -a required=($2)
+    local i
+    for ((i=0; i<${#current[@]} || i<${#required[@]}; i++)); do
+        local cur="${current[i]:-0}"
+        local req="${required[i]:-0}"
+        if ((10#$cur > 10#$req)); then
+            return 0
+        fi
+        if ((10#$cur < 10#$req)); then
+            return 1
+        fi
+    done
+    return 0
+}
+
+echo "🔧 Preparing Claude Desktop registration details"
 echo ""
-echo "Server name: $SERVER_NAME"
-echo "Server URL:  http://$SERVER_HOST:$SERVER_PORT/mcp"
+echo "Server name:    $SERVER_NAME"
+echo "Local MCP URL:  http://$SERVER_HOST:$SERVER_PORT/mcp"
 echo ""
 
-# Create config directory if it doesn't exist
-mkdir -p "$CLAUDE_CONFIG_DIR"
-
-# Initialize config file if it doesn't exist
-if [ ! -f "$CLAUDE_CONFIG_FILE" ]; then
-    echo "📝 Creating new Claude Desktop config file..."
-    echo '{"mcpServers":{}}' > "$CLAUDE_CONFIG_FILE"
-else
-    echo "📝 Updating existing Claude Desktop config file..."
+APP_VERSION="unknown"
+if [ -f "$CLAUDE_APP_PLIST" ] && command -v /usr/libexec/PlistBuddy &> /dev/null; then
+    APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CLAUDE_APP_PLIST" 2>/dev/null || echo "unknown")
 fi
 
-# Create backup
-BACKUP_FILE="${CLAUDE_CONFIG_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
-cp "$CLAUDE_CONFIG_FILE" "$BACKUP_FILE"
-echo "💾 Backup created: $BACKUP_FILE"
-echo ""
-
-# Read existing config
-EXISTING_CONFIG=$(cat "$CLAUDE_CONFIG_FILE")
-
-# Add or update the threds server configuration using jq
-# If jq is not available, fall back to Python
-if command -v jq &> /dev/null; then
-    # Use jq for JSON manipulation
-    echo "$EXISTING_CONFIG" | jq \
-        --arg name "$SERVER_NAME" \
-        --arg url "http://$SERVER_HOST:$SERVER_PORT/mcp" \
-        --arg token "Bearer $API_KEY" \
-        '.mcpServers[$name] = {"url": $url, "headers": {"Authorization": $token}}' \
-        > "$CLAUDE_CONFIG_FILE"
-elif command -v python3 &> /dev/null; then
-    # Use Python as fallback
-    python3 << PYTHON
-import json
-import sys
-
-config_file = "$CLAUDE_CONFIG_FILE"
-
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-except:
-    config = {"mcpServers": {}}
-
-if "mcpServers" not in config:
-    config["mcpServers"] = {}
-
-config["mcpServers"]["$SERVER_NAME"] = {
-    "url": "http://$SERVER_HOST:$SERVER_PORT/mcp",
-    "headers": {
-        "Authorization": "Bearer $API_KEY"
-    }
-}
-
-with open(config_file, 'w') as f:
-    json.dump(config, f, indent=2)
-
-print("✅ Configuration updated successfully")
-PYTHON
-else
-    echo "❌ Error: Neither jq nor python3 found"
-    echo "   Please install jq (brew install jq) or ensure python3 is available"
-    echo ""
-    echo "Manual registration instructions:"
-    echo "Add this to $CLAUDE_CONFIG_FILE:"
-    echo ""
-    cat <<MANUAL
-{
-  "mcpServers": {
-    "$SERVER_NAME": {
-      "url": "http://$SERVER_HOST:$SERVER_PORT/mcp",
-      "headers": {
-        "Authorization": "Bearer $API_KEY"
-      }
-    }
-  }
-}
-MANUAL
+if [ "$APP_VERSION" = "unknown" ]; then
+    echo "❌ Unable to detect Claude Desktop version."
+    echo "   Expected: $CLAUDE_APP_PLIST"
+    echo "   Please install Claude Desktop and re-run this script."
     exit 1
 fi
 
+if ! version_ge "$APP_VERSION" "$MIN_CLAUDE_VERSION"; then
+    echo "❌ Claude Desktop $APP_VERSION is older than required $MIN_CLAUDE_VERSION."
+    echo "   Please upgrade Claude Desktop and re-run this script."
+    exit 1
+fi
+
+echo "ℹ️  Claude Desktop registers remote HTTP MCP servers through the UI."
+echo "   The claude_desktop_config.json file is for local stdio servers."
+echo "   Claude Desktop requires https URLs for connectors."
 echo ""
-echo "✅ Registration complete!"
+echo "   Add this server in Claude Desktop:"
+echo "   Settings → Extensions (or Connectors) → Add Custom Connector"
+echo ""
+echo "   Name: $SERVER_NAME"
+echo "   URL:  https://YOUR_HTTPS_HOST/mcp"
+if [ "$AUTH_ENABLED" = "false" ]; then
+    echo "   OAuth Client ID / Secret: leave blank (auth disabled for local)"
+else
+    echo "   OAuth Client ID / Secret: required (bearer auth is not supported in the UI)"
+fi
+echo ""
+echo "   For local development, create an HTTPS tunnel or reverse proxy that"
+echo "   forwards https://YOUR_HTTPS_HOST/mcp → http://$SERVER_HOST:$SERVER_PORT/mcp"
+echo ""
+echo "✅ Config details provided. No file changes were made."
 echo ""
 echo "🎯 Next steps:"
 echo ""
@@ -152,11 +124,7 @@ echo "4. Test by asking Claude to list your projects:"
 echo "   \"Can you list my threds projects?\""
 echo ""
 echo "📋 Server details:"
-echo "   Name:         $SERVER_NAME"
-echo "   URL:          http://$SERVER_HOST:$SERVER_PORT/mcp"
-echo "   Config file:  $CLAUDE_CONFIG_FILE"
-echo "   Backup:       $BACKUP_FILE"
-echo ""
-echo "⚠️  To unregister, remove the \"$SERVER_NAME\" entry from:"
-echo "   $CLAUDE_CONFIG_FILE"
+echo "   Name:   $SERVER_NAME"
+echo "   Local:  http://$SERVER_HOST:$SERVER_PORT/mcp"
+echo "   HTTPS:  https://YOUR_HTTPS_HOST/mcp"
 echo ""

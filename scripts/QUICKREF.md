@@ -33,6 +33,10 @@ cd ~/my-threds-server
 # Custom name
 ./scripts/register-claude-desktop.sh ~/my-threds-server my-project
 ```
+The script prints the exact values to enter in Claude Desktop:
+Settings → Extensions/Connectors → Add Custom Connector.
+Claude Desktop requires https URLs for connectors.
+Use an HTTPS tunnel or reverse proxy that forwards to the local http endpoint.
 
 ## Testing API
 
@@ -40,12 +44,12 @@ cd ~/my-threds-server
 ```bash
 cat ~/my-threds-server/.env | grep THREDS_API_KEY
 ```
+Only needed if you enable auth.
 
 ### List Projects
 ```bash
 curl -X POST http://127.0.0.1:8080/rpc \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"jsonrpc":"2.0","id":1,"method":"list_projects","params":{}}'
 ```
 
@@ -53,7 +57,6 @@ curl -X POST http://127.0.0.1:8080/rpc \
 ```bash
 curl -X POST http://127.0.0.1:8080/rpc \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"jsonrpc":"2.0","id":1,"method":"get_project_overview","params":{}}'
 ```
 
@@ -61,7 +64,6 @@ curl -X POST http://127.0.0.1:8080/rpc \
 ```bash
 curl -X POST http://127.0.0.1:8080/rpc \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"jsonrpc":"2.0","id":1,"method":"search_records","params":{"query":"navigation"}}'
 ```
 
@@ -79,9 +81,8 @@ curl -X POST http://127.0.0.1:8080/rpc \
 ```
 
 ### Claude Desktop Config
-```
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
+`~/Library/Application Support/Claude/claude_desktop_config.json` is for
+local stdio MCP servers only. Remote HTTP MCP servers are added via the UI.
 
 ## Multiple Servers
 
@@ -110,8 +111,8 @@ sqlite3 ~/my-threds-server/data/threds.db ".tables"
 
 ### Claude Doesn't See Server
 ```bash
-# 1. Verify config syntax
-cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | jq .
+# 1. Verify connector details in Claude Desktop:
+#    Name, URL (https://YOUR_HTTPS_HOST/mcp), OAuth fields blank
 
 # 2. Restart Claude Desktop completely
 
@@ -171,8 +172,7 @@ cd ~/my-threds-server
 cd ~/my-threds-server && ./stop.sh
 
 # 2. Remove from Claude config
-# Edit ~/Library/Application Support/Claude/claude_desktop_config.json
-# Delete the threds-* entry
+# Settings → Extensions/Connectors → Remove the threds connector
 
 # 3. Delete directory
 rm -rf ~/my-threds-server
@@ -211,23 +211,15 @@ Available via JSON-RPC at `http://127.0.0.1:8080/rpc`:
 ## MCP Client Registration
 
 ### Claude Desktop
-```json
-{
-  "mcpServers": {
-    "threds": {
-      "url": "http://127.0.0.1:8080/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
+Add via the UI:
+1. Settings → Extensions/Connectors → Add Custom Connector
+2. Name: `threds`
+3. URL: `https://YOUR_HTTPS_HOST/mcp`
+4. OAuth Client ID / Secret: leave blank (auth disabled for local)
 
 ### Claude Code CLI
 ```bash
 claude-code config set mcp.servers.threds.url "http://127.0.0.1:8080/mcp"
-claude-code config set mcp.servers.threds.headers.Authorization "Bearer YOUR_KEY"
 ```
 
 ### Cline (VS Code)
@@ -235,20 +227,17 @@ Add to Cline settings:
 ```json
 {
   "threds": {
-    "url": "http://127.0.0.1:8080/mcp",
-    "headers": {
-      "Authorization": "Bearer YOUR_API_KEY"
-    }
+    "url": "http://127.0.0.1:8080/mcp"
   }
 }
 ```
 
 ## Quick Tips
 
-- **API Key:** Always in `.env` file in deployment directory
+- **API Key:** Stored in `.env` if you enable auth
 - **Localhost Only:** Default binding is 127.0.0.1 (secure)
 - **Sample Data:** Includes 2 projects, 6 records (realistic examples)
-- **Unique Names:** Use suffixes to run multiple servers
+- **Unique Names:** Use different connector names in the UI
 - **Restart Claude:** Required after config changes
 - **Backups:** Created automatically by registration script
 

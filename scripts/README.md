@@ -21,7 +21,7 @@ Deploys a complete standalone threds-mcp server to a specified directory.
 **What it does:**
 - Compiles the Go server binary
 - Creates directory structure (bin/, data/)
-- Generates a unique API key for authentication
+- Generates a unique API key (auth disabled by default for local)
 - Creates configuration files (config.yaml, .env)
 - Initializes SQLite database with API key
 - Creates start/stop scripts
@@ -74,7 +74,7 @@ cd /path/to/threds-mcp
 
 ### 3. `register-claude-desktop.sh`
 
-Automatically registers the threds server with Claude Desktop on Mac.
+Prints the UI steps to register the threds server with Claude Desktop on Mac.
 
 **Usage:**
 ```bash
@@ -92,11 +92,9 @@ Automatically registers the threds server with Claude Desktop on Mac.
 
 **What it does:**
 - Validates deployment directory
-- Reads API key and configuration from `.env`
-- Locates Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`)
-- Creates backup of existing config
-- Adds/updates server entry with unique name
-- Provides next steps for testing
+- Reads configuration from `.env`
+- Checks Claude Desktop version
+- Prints the exact values to enter in the Claude Desktop UI (https required)
 
 **Server naming:**
 - Default: `threds-<random_hex>` (e.g., `threds-a3f2c1d9`)
@@ -104,8 +102,10 @@ Automatically registers the threds server with Claude Desktop on Mac.
 
 **Requirements:**
 - macOS only
-- Requires `jq` (install via `brew install jq`) or `python3`
-- Claude Desktop installed
+- Claude Desktop installed (v1.1.0+)
+- Claude Desktop registers remote HTTP MCP servers via the UI, not the config file
+- Claude Desktop requires https URLs for connectors (use a tunnel or reverse proxy)
+- The UI only supports OAuth fields; local deployments disable auth by default
 
 ## Complete Workflow
 
@@ -125,12 +125,14 @@ cd ~/threds-servers/design-project
 cd /path/to/threds-mcp
 ./scripts/generate-sample-data.sh ~/threds-servers/design-project
 
-# 4. Register with Claude Desktop
+# 4. Print Claude Desktop UI steps
 ./scripts/register-claude-desktop.sh ~/threds-servers/design-project design-project
 
-# 5. Restart Claude Desktop
+# 5. Add the connector in Claude Desktop UI
 
-# 6. Test in Claude
+# 6. Restart Claude Desktop
+
+# 7. Test in Claude
 # Open Claude Desktop and ask:
 # "Can you list my threds projects?"
 ```
@@ -150,10 +152,12 @@ You can run multiple threds servers simultaneously for different projects:
 ./deploy-standalone.sh ~/threds-servers/project-c
 # Edit ~/threds-servers/project-c/config.yaml to use port 8082
 
-# Register each with a unique name
+# Print UI steps for each unique name
 ./register-claude-desktop.sh ~/threds-servers/project-a project-a
 ./register-claude-desktop.sh ~/threds-servers/project-b project-b
 ./register-claude-desktop.sh ~/threds-servers/project-c project-c
+
+# Add each connector in Claude Desktop UI
 ```
 
 Claude will see all registered servers as separate MCP servers.
@@ -161,6 +165,8 @@ Claude will see all registered servers as separate MCP servers.
 ## MCP Registration for Other Clients
 
 The scripts focus on Claude Desktop, but you can manually register with other clients:
+Local deployments default to auth disabled; omit Authorization headers unless you
+enable auth in `config.yaml` or `THREDS_AUTH_ENABLED`.
 
 ### Cline (VS Code)
 
@@ -168,10 +174,7 @@ Edit Cline settings and add:
 ```json
 {
   "threds": {
-    "url": "http://127.0.0.1:8080/mcp",
-    "headers": {
-      "Authorization": "Bearer YOUR_API_KEY"
-    }
+    "url": "http://127.0.0.1:8080/mcp"
   }
 }
 ```
@@ -180,15 +183,13 @@ Edit Cline settings and add:
 
 ```bash
 claude-code config set mcp.servers.threds.url "http://127.0.0.1:8080/mcp"
-claude-code config set mcp.servers.threds.headers.Authorization "Bearer YOUR_API_KEY"
 ```
 
 ### Generic MCP Client
 
 Connection details:
 - **URL:** `http://127.0.0.1:8080/mcp`
-- **Authentication:** Bearer token in `Authorization` header
-- **Token:** See `.env` file in deployment directory
+- **Authentication:** Disabled for local deployments by default
 
 ## Troubleshooting
 
@@ -206,10 +207,10 @@ cd ~/threds-servers/my-project
 
 ### Claude Desktop doesn't see the server
 
-1. Verify config file syntax:
-   ```bash
-   cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | jq .
-   ```
+1. Verify the connector details in Claude Desktop:
+   - Name
+   - URL (https://YOUR_HTTPS_HOST/mcp)
+   - OAuth fields left blank (auth disabled for local)
 
 2. Restart Claude Desktop completely (quit and reopen)
 
@@ -224,11 +225,10 @@ cd ~/threds-servers/my-project
 # Verify server is running
 curl -X POST http://127.0.0.1:8080/rpc \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(grep THREDS_API_KEY ~/threds-servers/my-project/.env | cut -d= -f2)" \
   -d '{"jsonrpc":"2.0","id":1,"method":"list_projects","params":{}}'
 ```
 
-### API key issues
+### API key issues (if auth is enabled)
 
 ```bash
 # Regenerate API key
@@ -254,6 +254,7 @@ cd /path/to/threds-mcp
 
 - API keys are stored in plaintext in `.env` files
 - Keys are hashed (SHA256) in the database
+- Local deployments disable auth by default (set `THREDS_AUTH_ENABLED=true` to enable)
 - Default deployment binds to `127.0.0.1` (localhost only)
 - For remote access, update `config.yaml` and add proper authentication/TLS
 - Keep `.env` files secure and don't commit them to version control
@@ -269,7 +270,7 @@ server:
   port: 8081  # Change this
 ```
 
-Then restart the server and re-register with Claude Desktop.
+Then restart the server and update the connector settings in Claude Desktop.
 
 ### Change log level
 
@@ -297,8 +298,7 @@ cd ~/threds-servers/my-project
 ./stop.sh
 
 # 2. Remove registration from Claude Desktop
-# Edit ~/Library/Application Support/Claude/claude_desktop_config.json
-# Remove the threds-* entry
+# Settings → Extensions/Connectors → Remove the threds connector
 
 # 3. Delete deployment directory
 rm -rf ~/threds-servers/my-project
