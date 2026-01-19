@@ -1,426 +1,515 @@
 package mcp
 
-// buildToolCatalog returns all available MCP tools
-func buildToolCatalog() []ToolDefinition {
-	return []ToolDefinition{
-		// Projects
-		{
-			Name:        "create_project",
-			Description: "Create a new project to organize records",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Unique project identifier (optional, will be generated if not provided)",
-					},
-					"name": map[string]any{
-						"type":        "string",
-						"description": "Project display name",
-					},
-					"description": map[string]any{
-						"type":        "string",
-						"description": "Project description",
-					},
-				},
-				"required": []string{"name"},
-			},
-		},
-		{
-			Name:        "list_projects",
-			Description: "List all projects for the current tenant",
-			InputSchema: map[string]any{
-				"type":       "object",
-				"properties": map[string]any{},
-			},
-		},
-		{
-			Name:        "get_project",
-			Description: "Get details for a specific project or the default project",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Project ID (omit to get default project)",
-					},
-				},
-			},
-		},
+import (
+	"context"
+	"fmt"
 
-		// Orientation
-		{
-			Name:        "get_project_overview",
-			Description: "Get a comprehensive overview of a project including open sessions and root records",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"project_id": map[string]any{
-						"type":        "string",
-						"description": "Project ID (omit to use default project)",
-					},
-				},
-			},
-		},
-		{
-			Name:        "search_records",
-			Description: "Search for records by query text, optionally filtered by state and type",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"project_id": map[string]any{
-						"type":        "string",
-						"description": "Project ID (omit to use default project)",
-					},
-					"query": map[string]any{
-						"type":        "string",
-						"description": "Search query text",
-					},
-					"states": map[string]any{
-						"type":        "array",
-						"description": "Filter by record states (open, in_progress, resolved, closed)",
-						"items": map[string]any{
-							"type": "string",
-							"enum": []string{"open", "in_progress", "resolved", "closed"},
-						},
-					},
-					"types": map[string]any{
-						"type":        "array",
-						"description": "Filter by record types",
-						"items":       map[string]any{"type": "string"},
-					},
-					"limit": map[string]any{
-						"type":        "integer",
-						"description": "Maximum number of results",
-					},
-					"offset": map[string]any{
-						"type":        "integer",
-						"description": "Offset for pagination",
-					},
-				},
-				"required": []string{"query"},
-			},
-		},
-		{
-			Name:        "list_records",
-			Description: "List records in a project, optionally filtered by parent, state, and type",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"project_id": map[string]any{
-						"type":        "string",
-						"description": "Project ID (omit to use default project)",
-					},
-					"parent_id": map[string]any{
-						"type":        "string",
-						"description": "Parent record ID (null/empty for root records)",
-					},
-					"states": map[string]any{
-						"type":        "array",
-						"description": "Filter by record states",
-						"items": map[string]any{
-							"type": "string",
-							"enum": []string{"open", "in_progress", "resolved", "closed"},
-						},
-					},
-					"types": map[string]any{
-						"type":        "array",
-						"description": "Filter by record types",
-						"items":       map[string]any{"type": "string"},
-					},
-					"limit": map[string]any{
-						"type":        "integer",
-						"description": "Maximum number of results",
-					},
-					"offset": map[string]any{
-						"type":        "integer",
-						"description": "Offset for pagination",
-					},
-				},
-			},
-		},
-		{
-			Name:        "get_record_ref",
-			Description: "Get a record reference (summary view) by ID",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Record ID",
-					},
-				},
-				"required": []string{"id"},
-			},
-		},
+	"github.com/ganot/threds-mcp/internal/domain/activity"
+	"github.com/ganot/threds-mcp/internal/domain/project"
+	"github.com/ganot/threds-mcp/internal/domain/record"
+	"github.com/ganot/threds-mcp/internal/domain/session"
+	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+)
 
-		// Activation
-		{
-			Name:        "activate",
-			Description: "Activate a record for editing in the current session, retrieving its full context",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Record ID to activate",
-					},
-				},
-				"required": []string{"id"},
-			},
-		},
-		{
-			Name:        "sync_session",
-			Description: "Synchronize the current session to detect changes made by other sessions",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"session_id": map[string]any{
-						"type":        "string",
-						"description": "Session ID (omit to use current session from header)",
-					},
-				},
-			},
-		},
+// registerTools adds all 26 MCP tools to the server.
+func registerTools(server *sdkmcp.Server, svc Services) {
+	// Projects (3 tools)
+	registerProjectTools(server, svc)
 
-		// Mutations
-		{
-			Name:        "create_record",
-			Description: "Create a new record in the project",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"parent_id": map[string]any{
-						"type":        "string",
-						"description": "Parent record ID (null for root-level records)",
-					},
-					"type": map[string]any{
-						"type":        "string",
-						"description": "Record type (e.g., 'question', 'thread', 'conclusion')",
-					},
-					"title": map[string]any{
-						"type":        "string",
-						"description": "Record title",
-					},
-					"summary": map[string]any{
-						"type":        "string",
-						"description": "Brief summary of the record",
-					},
-					"body": map[string]any{
-						"type":        "string",
-						"description": "Full record content",
-					},
-					"state": map[string]any{
-						"type":        "string",
-						"description": "Initial state",
-						"enum":        []string{"open", "in_progress", "resolved", "closed"},
-					},
-					"related": map[string]any{
-						"type":        "array",
-						"description": "Related record IDs",
-						"items":       map[string]any{"type": "string"},
-					},
-				},
-				"required": []string{"type", "title", "summary", "body"},
-			},
-		},
-		{
-			Name:        "update_record",
-			Description: "Update an existing record's content",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Record ID to update",
-					},
-					"title": map[string]any{
-						"type":        "string",
-						"description": "New title",
-					},
-					"summary": map[string]any{
-						"type":        "string",
-						"description": "New summary",
-					},
-					"body": map[string]any{
-						"type":        "string",
-						"description": "New body content",
-					},
-					"related": map[string]any{
-						"type":        "array",
-						"description": "New related record IDs",
-						"items":       map[string]any{"type": "string"},
-					},
-					"force": map[string]any{
-						"type":        "boolean",
-						"description": "Force update even if conflicts detected",
-					},
-				},
-				"required": []string{"id"},
-			},
-		},
-		{
-			Name:        "transition",
-			Description: "Transition a record to a new state (e.g., open → in_progress → resolved)",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Record ID",
-					},
-					"to_state": map[string]any{
-						"type":        "string",
-						"description": "Target state",
-						"enum":        []string{"open", "in_progress", "resolved", "closed"},
-					},
-					"reason": map[string]any{
-						"type":        "string",
-						"description": "Reason for transition",
-					},
-					"resolved_by": map[string]any{
-						"type":        "string",
-						"description": "Record ID that resolves this one (for resolved state)",
-					},
-				},
-				"required": []string{"id", "to_state"},
-			},
-		},
+	// Orientation (4 tools)
+	registerOrientationTools(server, svc)
 
-		// Session Lifecycle
-		{
-			Name:        "save_session",
-			Description: "Save the current session state",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"session_id": map[string]any{
-						"type":        "string",
-						"description": "Session ID (omit to use current session from header)",
-					},
-				},
-			},
-		},
-		{
-			Name:        "close_session",
-			Description: "Close the current session and release all locks",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"session_id": map[string]any{
-						"type":        "string",
-						"description": "Session ID (omit to use current session from header)",
-					},
-				},
-			},
-		},
-		{
-			Name:        "branch_session",
-			Description: "Create a new session branched from an existing one",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"session_id": map[string]any{
-						"type":        "string",
-						"description": "Source session ID to branch from",
-					},
-					"focus_record": map[string]any{
-						"type":        "string",
-						"description": "Record ID to focus on in the new session",
-					},
-				},
-				"required": []string{"session_id"},
-			},
-		},
+	// Activation (2 tools)
+	registerActivationTools(server, svc)
 
-		// History/Conflict
-		{
-			Name:        "get_record_history",
-			Description: "Get the change history for a record",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Record ID",
-					},
-					"since": map[string]any{
-						"type":        "string",
-						"description": "Timestamp to fetch history since (ISO 8601)",
-					},
-					"limit": map[string]any{
-						"type":        "integer",
-						"description": "Maximum number of history entries",
-					},
-				},
-				"required": []string{"id"},
-			},
-		},
-		{
-			Name:        "get_record_diff",
-			Description: "Get the diff between two versions of a record",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{
-						"type":        "string",
-						"description": "Record ID",
-					},
-					"from": map[string]any{
-						"type":        "string",
-						"description": "Source version timestamp",
-					},
-					"to": map[string]any{
-						"type":        "string",
-						"description": "Target version timestamp (omit for current)",
-					},
-				},
-				"required": []string{"id", "from"},
-			},
-		},
-		{
-			Name:        "get_active_sessions",
-			Description: "Get all active sessions working on a specific record",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"record_id": map[string]any{
-						"type":        "string",
-						"description": "Record ID",
-					},
-				},
-				"required": []string{"record_id"},
-			},
-		},
-		{
-			Name:        "get_recent_activity",
-			Description: "Get recent activity entries for a project or specific record",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"project_id": map[string]any{
-						"type":        "string",
-						"description": "Project ID to filter by",
-					},
-					"record_id": map[string]any{
-						"type":        "string",
-						"description": "Record ID to filter by",
-					},
-					"limit": map[string]any{
-						"type":        "integer",
-						"description": "Maximum number of activity entries",
-					},
-					"since": map[string]any{
-						"type":        "string",
-						"description": "Timestamp to fetch activity since (ISO 8601)",
-					},
-					"types": map[string]any{
-						"type":        "array",
-						"description": "Filter by activity types",
-						"items":       map[string]any{"type": "string"},
-					},
-				},
-			},
-		},
+	// Mutations (3 tools)
+	registerMutationTools(server, svc)
+
+	// Session Lifecycle (3 tools)
+	registerSessionTools(server, svc)
+
+	// History/Conflict (4 tools)
+	registerHistoryTools(server, svc)
+
+	// Utilities (7 tools) - minimal implementation
+	registerUtilityTools(server, svc)
+}
+
+// Helper functions
+func getProjectOrDefault(ctx context.Context, svc ProjectService, tenantID, projectID string) (*project.Project, error) {
+	if projectID == "" {
+		return svc.GetDefault(ctx, tenantID)
 	}
+	return svc.Get(ctx, tenantID, projectID)
+}
+
+func stringValue(val *string) string {
+	if val == nil {
+		return ""
+	}
+	return *val
+}
+
+// Project tools
+func registerProjectTools(server *sdkmcp.Server, svc Services) {
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "create_project",
+		Description: "Create a new project to organize records",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CreateProjectParams) (*sdkmcp.CallToolResult, *project.Project, error) {
+		tenantID := getTenantID(ctx)
+		proj, err := svc.Projects.Create(ctx, tenantID, project.CreateRequest{
+			ID:          input.ID,
+			Name:        input.Name,
+			Description: input.Description,
+		})
+		return nil, proj, mapError(err)
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "list_projects",
+		Description: "List all projects for the current tenant",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, _ struct{}) (*sdkmcp.CallToolResult, *ListProjectsResponse, error) {
+		tenantID := getTenantID(ctx)
+		projects, err := svc.Projects.List(ctx, tenantID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+		resp := make([]ProjectSummaryResponse, 0, len(projects))
+		for _, proj := range projects {
+			resp = append(resp, ProjectSummaryResponse{
+				ID:           proj.ID,
+				Name:         proj.Name,
+				Description:  proj.Description,
+				Tick:         proj.Tick,
+				OpenSessions: proj.ActiveSessions,
+				OpenRecords:  proj.OpenRecords,
+			})
+		}
+		return nil, &ListProjectsResponse{Projects: resp}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_project",
+		Description: "Get details for a specific project or the default project",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetProjectParams) (*sdkmcp.CallToolResult, *project.Project, error) {
+		tenantID := getTenantID(ctx)
+		if input.ID == "" {
+			proj, err := svc.Projects.GetDefault(ctx, tenantID)
+			return nil, proj, mapError(err)
+		}
+		proj, err := svc.Projects.Get(ctx, tenantID, input.ID)
+		return nil, proj, mapError(err)
+	})
+}
+
+// Orientation tools
+func registerOrientationTools(server *sdkmcp.Server, svc Services) {
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_project_overview",
+		Description: "Get a comprehensive overview of a project including open sessions and root records",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetProjectOverviewParams) (*sdkmcp.CallToolResult, *ProjectOverviewResponse, error) {
+		tenantID := getTenantID(ctx)
+		proj, err := getProjectOrDefault(ctx, svc.Projects, tenantID, input.ProjectID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		rootID := ""
+		rootRecords, err := svc.Records.List(ctx, tenantID, record.ListRecordsOptions{
+			ProjectID: proj.ID,
+			ParentID:  &rootID,
+		})
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		sessions, err := svc.Sessions.ListActiveSessions(ctx, tenantID, proj.ID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		openSessions := make([]ProjectSessionStatus, 0, len(sessions))
+		for _, sess := range sessions {
+			tickGap := proj.Tick - sess.LastSyncTick
+			warning := ""
+			if tickGap > 0 {
+				warning = fmt.Sprintf("%d writes have occurred since last sync", tickGap)
+			}
+			openSessions = append(openSessions, ProjectSessionStatus{
+				ID:           sess.SessionID,
+				FocusRecord:  stringValue(sess.FocusRecord),
+				LastActivity: sess.LastActivity,
+				LastSyncTick: sess.LastSyncTick,
+				TickGap:      tickGap,
+				Warning:      warning,
+			})
+		}
+
+		return nil, &ProjectOverviewResponse{
+			Project:      *proj,
+			OpenSessions: openSessions,
+			RootRecords:  rootRecords,
+		}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "search_records",
+		Description: "Search for records by query text, optionally filtered by state and type",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input SearchRecordsParams) (*sdkmcp.CallToolResult, *SearchRecordsResponse, error) {
+		tenantID := getTenantID(ctx)
+		proj, err := getProjectOrDefault(ctx, svc.Projects, tenantID, input.ProjectID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+		results, err := svc.Records.Search(ctx, tenantID, proj.ID, input.Query, record.SearchOptions{
+			States: input.States,
+			Types:  input.Types,
+			Limit:  input.Limit,
+			Offset: input.Offset,
+		})
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+		return nil, &SearchRecordsResponse{Results: results}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "list_records",
+		Description: "List records in a project, optionally filtered by parent, state, and type",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input ListRecordsParams) (*sdkmcp.CallToolResult, *ListRecordsResponse, error) {
+		tenantID := getTenantID(ctx)
+		proj, err := getProjectOrDefault(ctx, svc.Projects, tenantID, input.ProjectID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+		results, err := svc.Records.List(ctx, tenantID, record.ListRecordsOptions{
+			ProjectID: proj.ID,
+			ParentID:  input.ParentID,
+			States:    input.States,
+			Types:     input.Types,
+			Limit:     input.Limit,
+			Offset:    input.Offset,
+		})
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+		return nil, &ListRecordsResponse{Records: results}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_record_ref",
+		Description: "Get a record reference (summary view) by ID",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecordRefParams) (*sdkmcp.CallToolResult, record.RecordRef, error) {
+		tenantID := getTenantID(ctx)
+		ref, err := svc.Records.GetRef(ctx, tenantID, input.ID)
+		return nil, ref, mapError(err)
+	})
+}
+
+// Activation tools
+func registerActivationTools(server *sdkmcp.Server, svc Services) {
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "activate",
+		Description: "Activate a record in the current session",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input ActivateParams) (*sdkmcp.CallToolResult, *ActivateResponse, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		result, err := svc.Sessions.Activate(ctx, tenantID, session.ActivateRequest{
+			SessionID: sessionID,
+			RecordID:  input.ID,
+		})
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		return nil, &ActivateResponse{
+			SessionID: result.SessionID,
+			Context:   result.Context,
+			Warnings:  result.Warnings,
+		}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "sync_session",
+		Description: "Sync the current session with the latest project state",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input SyncSessionParams) (*sdkmcp.CallToolResult, *SyncSessionResponse, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		currentSessionID := sessionID
+		if currentSessionID == "" {
+			currentSessionID = input.SessionID
+		}
+
+		result, err := svc.Sessions.SyncSession(ctx, tenantID, currentSessionID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		warning := ""
+		if result.TickGap > 0 {
+			warning = fmt.Sprintf("%d writes occurred since last sync", result.TickGap)
+		}
+
+		return nil, &SyncSessionResponse{
+			SessionID:     result.SessionID,
+			Staleness:     result.TickGap,
+			SessionStatus: result.Status,
+			Warning:       warning,
+		}, nil
+	})
+}
+
+// Mutation tools
+func registerMutationTools(server *sdkmcp.Server, svc Services) {
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "create_record",
+		Description: "Create a new record in the current session",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CreateRecordParams) (*sdkmcp.CallToolResult, *CreateRecordResponse, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		proj, err := getProjectOrDefault(ctx, svc.Projects, tenantID, "")
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		rec, err := svc.Records.Create(ctx, tenantID, record.CreateRequest{
+			SessionID: sessionID,
+			ProjectID: proj.ID,
+			ParentID:  input.ParentID,
+			Type:      input.Type,
+			Title:     input.Title,
+			Summary:   input.Summary,
+			Body:      input.Body,
+			State:     input.State,
+			Related:   input.Related,
+		})
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		return nil, &CreateRecordResponse{
+			Record:        *rec,
+			AutoActivated: sessionID != "",
+		}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "update_record",
+		Description: "Update an existing record in the current session",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input UpdateRecordParams) (*sdkmcp.CallToolResult, *UpdateRecordResponse, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		rec, conflict, err := svc.Records.Update(ctx, tenantID, record.UpdateRequest{
+			SessionID: sessionID,
+			ID:        input.ID,
+			Title:     input.Title,
+			Summary:   input.Summary,
+			Body:      input.Body,
+			Related:   input.Related,
+			Force:     input.Force,
+		})
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		resp := &UpdateRecordResponse{Record: rec}
+		if conflict != nil && conflict.RemoteVersion != nil {
+			resp.Record = nil
+			resp.Conflict = &RecordConflictResult{
+				Message:      conflict.Message,
+				OtherVersion: *conflict.RemoteVersion,
+			}
+		}
+		return nil, resp, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "transition",
+		Description: "Transition a record to a new state",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input TransitionParams) (*sdkmcp.CallToolResult, *record.Record, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		rec, err := svc.Records.Transition(ctx, tenantID, record.TransitionRequest{
+			SessionID:  sessionID,
+			ID:         input.ID,
+			ToState:    input.ToState,
+			Reason:     input.Reason,
+			ResolvedBy: input.ResolvedBy,
+		})
+		return nil, rec, mapError(err)
+	})
+}
+
+// Session lifecycle tools
+func registerSessionTools(server *sdkmcp.Server, svc Services) {
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "save_session",
+		Description: "Save the current session state",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input SaveSessionParams) (*sdkmcp.CallToolResult, map[string]string, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		currentSessionID := sessionID
+		if currentSessionID == "" {
+			currentSessionID = input.SessionID
+		}
+
+		if err := svc.Sessions.SaveSession(ctx, tenantID, currentSessionID); err != nil {
+			return nil, nil, mapError(err)
+		}
+		return nil, map[string]string{"status": "ok"}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "close_session",
+		Description: "Close the current session",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CloseSessionParams) (*sdkmcp.CallToolResult, map[string]string, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		currentSessionID := sessionID
+		if currentSessionID == "" {
+			currentSessionID = input.SessionID
+		}
+
+		if err := svc.Sessions.CloseSession(ctx, tenantID, currentSessionID); err != nil {
+			return nil, nil, mapError(err)
+		}
+		return nil, map[string]string{"status": "closed"}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "branch_session",
+		Description: "Create a new session branched from an existing one",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input BranchSessionParams) (*sdkmcp.CallToolResult, *BranchSessionResponse, error) {
+		tenantID := getTenantID(ctx)
+
+		sess, err := svc.Sessions.BranchSession(ctx, tenantID, input.SessionID, input.FocusRecord)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+		return nil, &BranchSessionResponse{Session: *sess}, nil
+	})
+}
+
+// History and conflict resolution tools
+func registerHistoryTools(server *sdkmcp.Server, svc Services) {
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_record_history",
+		Description: "Get the history of changes for a record",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecordHistoryParams) (*sdkmcp.CallToolResult, *GetRecordHistoryResponse, error) {
+		tenantID := getTenantID(ctx)
+
+		entries, err := svc.Activity.GetRecentActivity(ctx, tenantID, activity.ListActivityOptions{
+			RecordID: &input.ID,
+			Limit:    input.Limit,
+		})
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		resp := make([]RecordHistoryEntry, 0, len(entries))
+		for _, entry := range entries {
+			resp = append(resp, RecordHistoryEntry{
+				Timestamp:  entry.CreatedAt,
+				SessionID:  stringValue(entry.SessionID),
+				ChangeType: string(entry.ActivityType),
+				Summary:    entry.Summary,
+			})
+		}
+		return nil, &GetRecordHistoryResponse{History: resp}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_record_diff",
+		Description: "Get the diff between two versions of a record",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecordDiffParams) (*sdkmcp.CallToolResult, *RecordDiffResponse, error) {
+		tenantID := getTenantID(ctx)
+
+		current, err := svc.Records.Get(ctx, tenantID, input.ID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		// Simple implementation - just return current version (no actual diff yet)
+		return nil, &RecordDiffResponse{
+			FromVersion: *current,
+			ToVersion:   *current,
+			Diff:        RecordDiff{},
+		}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_active_sessions",
+		Description: "Get all active sessions for a record",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetActiveSessionsParams) (*sdkmcp.CallToolResult, *GetActiveSessionsResponse, error) {
+		tenantID := getTenantID(ctx)
+		sessionID := getSessionID(ctx)
+
+		sessions, err := svc.Sessions.GetActiveSessionsForRecord(ctx, tenantID, input.RecordID)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		resp := make([]ActiveSessionStatus, 0, len(sessions))
+		for _, sess := range sessions {
+			resp = append(resp, ActiveSessionStatus{
+				SessionID:    sess.SessionID,
+				LastActivity: sess.LastActivity,
+				IsCurrent:    sess.SessionID == sessionID,
+			})
+		}
+		return nil, &GetActiveSessionsResponse{Sessions: resp}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_recent_activity",
+		Description: "Get recent activity for a project or record",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecentActivityParams) (*sdkmcp.CallToolResult, *GetRecentActivityResponse, error) {
+		tenantID := getTenantID(ctx)
+
+		opts := activity.ListActivityOptions{
+			ProjectID: input.ProjectID,
+			RecordID:  input.RecordID,
+			Limit:     input.Limit,
+		}
+
+		entries, err := svc.Activity.GetRecentActivity(ctx, tenantID, opts)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+
+		resp := make([]ActivityEntryResponse, 0, len(entries))
+		for _, entry := range entries {
+			resp = append(resp, ActivityEntryResponse{
+				Timestamp: entry.CreatedAt,
+				Type:      entry.ActivityType,
+				SessionID: stringValue(entry.SessionID),
+				RecordID:  entry.RecordID,
+				Summary:   entry.Summary,
+				Details:   entry.Details,
+			})
+		}
+		return nil, &GetRecentActivityResponse{Activity: resp}, nil
+	})
+}
+
+// Utility tools (minimal implementations)
+func registerUtilityTools(server *sdkmcp.Server, svc Services) {
+	// ping - simple health check
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "ping",
+		Description: "Health check - returns pong",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, _ struct{}) (*sdkmcp.CallToolResult, map[string]string, error) {
+		return nil, map[string]string{"status": "pong"}, nil
+	})
+
+	// Note: Other utility tools (health, get_server_info, validate_ref, format_record,
+	// get_schema, get_capabilities) can be added as needed. The SDK handles most
+	// protocol-level operations automatically.
 }

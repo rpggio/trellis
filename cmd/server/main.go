@@ -20,8 +20,8 @@ import (
 	"github.com/ganot/threds-mcp/internal/domain/session"
 	"github.com/ganot/threds-mcp/internal/mcp"
 	"github.com/ganot/threds-mcp/internal/sqlite"
-	"github.com/ganot/threds-mcp/internal/transport"
 	"github.com/ganot/threds-mcp/migrations"
+	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func main() {
@@ -63,14 +63,37 @@ func main() {
 	recordSvc := record.NewService(recordRepo, sessionRepo, projectRepo, activityRepo, searchRepo, logger)
 	sessionSvc := session.NewService(recordRepo, sessionRepo, projectRepo, logger)
 
-	handler := mcp.NewHandler(projectSvc, recordSvc, sessionSvc, activitySvc)
+	// Create MCP server with SDK
 	resolver := &apiKeyResolver{db: db}
-	authMiddleware := transport.AuthMiddleware(resolver)
-	if !cfg.Auth.Enabled {
-		authMiddleware = transport.NoAuthMiddleware("default")
-	}
+	mcpServer := mcp.NewServer(mcp.Config{
+		Services: mcp.Services{
+			Projects: projectSvc,
+			Records:  recordSvc,
+			Sessions: sessionSvc,
+			Activity: activitySvc,
+		},
+		Resolver:    resolver,
+		AuthEnabled: cfg.Auth.Enabled,
+		Logger:      logger,
+	})
 
-	router := transport.NewServer(handler, authMiddleware)
+	// Create HTTP handler using SDK
+	mcpHandler := sdkmcp.NewStreamableHTTPHandler(
+		func(r *http.Request) *sdkmcp.Server { return mcpServer },
+		&sdkmcp.StreamableHTTPOptions{
+			Stateless:      false,
+			SessionTimeout: 30 * time.Minute,
+		},
+	)
+
+	// Create router with MCP and health endpoints
+	router := http.NewServeMux()
+	router.Handle("/mcp", mcpHandler)
+	router.Handle("/mcp/", mcpHandler)
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{
@@ -146,7 +169,7 @@ func (r *apiKeyResolver) ResolveTenant(ctx context.Context, token string) (strin
 	var tenantID string
 	err := r.db.QueryRowContext(ctx, `SELECT tenant_id FROM api_keys WHERE key_hash = ?`, hash).Scan(&tenantID)
 	if err != nil || tenantID == "" {
-		return "", transport.ErrUnauthorized
+		return "", fmt.Errorf("unauthorized: invalid token")
 	}
 	return tenantID, nil
 }

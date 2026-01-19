@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -16,8 +17,8 @@ import (
 	"github.com/ganot/threds-mcp/internal/domain/session"
 	"github.com/ganot/threds-mcp/internal/mcp"
 	"github.com/ganot/threds-mcp/internal/sqlite"
-	"github.com/ganot/threds-mcp/internal/transport"
 	"github.com/stretchr/testify/require"
+	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type TestServer struct {
@@ -46,10 +47,27 @@ func New(t *testing.T, token, tenantID string) *TestServer {
 	recordSvc := record.NewService(recordRepo, sessionRepo, projectRepo, activityRepo, searchRepo, nil)
 	sessionSvc := session.NewService(recordRepo, sessionRepo, projectRepo, nil)
 
-	handler := mcp.NewHandler(projectSvc, recordSvc, sessionSvc, activitySvc)
-
+	// Create MCP server with SDK
 	resolver := &apiKeyResolver{db: db}
-	server := httptest.NewServer(transport.NewServer(handler, transport.AuthMiddleware(resolver)))
+	mcpServer := mcp.NewServer(mcp.Config{
+		Services: mcp.Services{
+			Projects: projectSvc,
+			Records:  recordSvc,
+			Sessions: sessionSvc,
+			Activity: activitySvc,
+		},
+		Resolver:    resolver,
+		AuthEnabled: true,
+		Logger:      nil,
+	})
+
+	// Create HTTP handler using SDK (SSEHandler for compatibility)
+	mcpHandler := sdkmcp.NewSSEHandler(
+		func(r *http.Request) *sdkmcp.Server { return mcpServer },
+		nil,
+	)
+
+	server := httptest.NewServer(mcpHandler)
 
 	ts := &TestServer{
 		Server:   server,
@@ -86,7 +104,7 @@ func (r *apiKeyResolver) ResolveTenant(ctx context.Context, token string) (strin
 	var tenantID string
 	err := r.db.QueryRowContext(ctx, `SELECT tenant_id FROM api_keys WHERE key_hash = ?`, hash).Scan(&tenantID)
 	if err != nil || tenantID == "" {
-		return "", transport.ErrUnauthorized
+		return "", fmt.Errorf("unauthorized: invalid token")
 	}
 	return tenantID, nil
 }

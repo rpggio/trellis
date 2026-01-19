@@ -125,6 +125,30 @@ type ProjectSummaryResponse struct {
 	OpenRecords  int    `json:"open_records"`
 }
 
+type ListProjectsResponse struct {
+	Projects []ProjectSummaryResponse `json:"projects"`
+}
+
+type SearchRecordsResponse struct {
+	Results []record.SearchResult `json:"results"`
+}
+
+type ListRecordsResponse struct {
+	Records []record.RecordRef `json:"records"`
+}
+
+type GetRecordHistoryResponse struct {
+	History []RecordHistoryEntry `json:"history"`
+}
+
+type GetActiveSessionsResponse struct {
+	Sessions []ActiveSessionStatus `json:"sessions"`
+}
+
+type GetRecentActivityResponse struct {
+	Activity []ActivityEntryResponse `json:"activity"`
+}
+
 type ProjectOverviewResponse struct {
 	Project      project.Project        `json:"project"`
 	OpenSessions []ProjectSessionStatus `json:"open_sessions"`

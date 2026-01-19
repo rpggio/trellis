@@ -8,53 +8,27 @@ import (
 	"github.com/ganot/threds-mcp/internal/domain/session"
 )
 
-// APIError represents an MCP error response.
-type APIError struct {
-	Code         string `json:"code"`
-	Message      string `json:"message"`
-	Details      any    `json:"details,omitempty"`
-	RecoveryHint string `json:"recovery_hint,omitempty"`
-}
-
-func (e *APIError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Code, e.Message)
-}
-
-func (e *APIError) CodeValue() string {
-	return e.Code
-}
-
-func (e *APIError) MessageValue() string {
-	return e.Message
-}
-
-func (e *APIError) DetailsValue() any {
-	return e.Details
-}
-
-func (e *APIError) RecoveryHintValue() string {
-	return e.RecoveryHint
-}
-
-// MapError maps domain errors to MCP error codes.
-func MapError(err error) *APIError {
+// mapError converts domain errors to SDK-compatible errors.
+// The SDK automatically wraps these in CallToolResult with IsError=true.
+func mapError(err error) error {
 	if err == nil {
 		return nil
 	}
+
 	switch {
 	case errors.Is(err, record.ErrRecordNotFound):
-		return &APIError{Code: "RECORD_NOT_FOUND", Message: "record not found", RecoveryHint: "Check ID spelling"}
+		return fmt.Errorf("RECORD_NOT_FOUND: record not found (hint: check ID spelling)")
 	case errors.Is(err, record.ErrNotActivated):
-		return &APIError{Code: "NOT_ACTIVATED", Message: "record not activated", RecoveryHint: "Call activate() first"}
+		return fmt.Errorf("NOT_ACTIVATED: record not activated (hint: call activate first)")
 	case errors.Is(err, record.ErrParentNotActivated):
-		return &APIError{Code: "PARENT_NOT_ACTIVATED", Message: "parent not activated", RecoveryHint: "Activate parent first"}
+		return fmt.Errorf("PARENT_NOT_ACTIVATED: parent not activated (hint: activate parent first)")
 	case errors.Is(err, record.ErrInvalidTransition):
-		return &APIError{Code: "INVALID_TRANSITION", Message: "invalid state transition", RecoveryHint: "Check valid transitions"}
+		return fmt.Errorf("INVALID_TRANSITION: invalid state transition (hint: check valid transitions)")
 	case errors.Is(err, record.ErrConflict):
-		return &APIError{Code: "CONFLICT", Message: "record modified by another session", RecoveryHint: "Sync and resolve"}
+		return fmt.Errorf("CONFLICT: record modified by another session (hint: sync and resolve)")
 	case errors.Is(err, session.ErrSessionNotFound):
-		return &APIError{Code: "SESSION_NOT_FOUND", Message: "session not found", RecoveryHint: "Start a new session"}
+		return fmt.Errorf("SESSION_NOT_FOUND: session not found (hint: start a new session)")
 	default:
-		return nil
+		return err
 	}
 }
