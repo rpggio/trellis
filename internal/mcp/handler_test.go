@@ -145,16 +145,16 @@ func TestHandler_ProjectCommands(t *testing.T) {
 		}},
 	)
 
-	_, err := handler.Handle(ctx, tenantID, "", "create_project", mustJSON(t, CreateProjectParams{Name: "Proj"}))
+	_, err := callTool(t, handler, ctx, tenantID, "", "create_project", CreateProjectParams{Name: "Proj"})
 	require.NoError(t, err)
 
-	_, err = handler.Handle(ctx, tenantID, "", "list_projects", nil)
+	_, err = callTool(t, handler, ctx, tenantID, "", "list_projects", nil)
 	require.NoError(t, err)
 
-	_, err = handler.Handle(ctx, tenantID, "", "get_project", mustJSON(t, GetProjectParams{ID: "p1"}))
+	_, err = callTool(t, handler, ctx, tenantID, "", "get_project", GetProjectParams{ID: "p1"})
 	require.NoError(t, err)
 
-	_, err = handler.Handle(ctx, tenantID, "", "get_project_overview", mustJSON(t, GetProjectOverviewParams{ProjectID: "p1"}))
+	_, err = callTool(t, handler, ctx, tenantID, "", "get_project_overview", GetProjectOverviewParams{ProjectID: "p1"})
 	require.NoError(t, err)
 }
 
@@ -216,35 +216,35 @@ func TestHandler_RecordAndSessionCommands(t *testing.T) {
 		}},
 	)
 
-	_, err := handler.Handle(ctx, tenantID, sessionID, "activate", mustJSON(t, ActivateParams{ID: "r1"}))
+	_, err := callTool(t, handler, ctx, tenantID, sessionID, "activate", ActivateParams{ID: "r1"})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "sync_session", nil)
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "sync_session", nil)
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "create_record", mustJSON(t, CreateRecordParams{Type: "note", Title: "t", Summary: "s", Body: "b"}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "create_record", CreateRecordParams{Type: "note", Title: "t", Summary: "s", Body: "b"})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "update_record", mustJSON(t, UpdateRecordParams{ID: "r1"}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "update_record", UpdateRecordParams{ID: "r1"})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "transition", mustJSON(t, TransitionParams{ID: "r1", ToState: record.StateOpen}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "transition", TransitionParams{ID: "r1", ToState: record.StateOpen})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "save_session", nil)
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "save_session", nil)
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "close_session", nil)
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "close_session", nil)
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "branch_session", mustJSON(t, BranchSessionParams{SessionID: sessionID}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "branch_session", BranchSessionParams{SessionID: sessionID})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "get_record_history", mustJSON(t, GetRecordHistoryParams{ID: "r1"}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "get_record_history", GetRecordHistoryParams{ID: "r1"})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "get_record_diff", mustJSON(t, GetRecordDiffParams{ID: "r1", From: "last_save"}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "get_record_diff", GetRecordDiffParams{ID: "r1", From: "last_save"})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "get_active_sessions", mustJSON(t, GetActiveSessionsParams{RecordID: "r1"}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "get_active_sessions", GetActiveSessionsParams{RecordID: "r1"})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "get_recent_activity", mustJSON(t, GetRecentActivityParams{}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "get_recent_activity", GetRecentActivityParams{})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "search_records", mustJSON(t, SearchRecordsParams{Query: "q"}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "search_records", SearchRecordsParams{Query: "q"})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "list_records", mustJSON(t, ListRecordsParams{}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "list_records", ListRecordsParams{})
 	require.NoError(t, err)
-	_, err = handler.Handle(ctx, tenantID, sessionID, "get_record_ref", mustJSON(t, GetRecordRefParams{ID: "r1"}))
+	_, err = callTool(t, handler, ctx, tenantID, sessionID, "get_record_ref", GetRecordRefParams{ID: "r1"})
 	require.NoError(t, err)
 }
 
@@ -308,11 +308,15 @@ func TestHandler_ErrorMapping(t *testing.T) {
 		}},
 	)
 
-	_, err := handler.Handle(ctx, tenantID, "", "update_record", mustJSON(t, UpdateRecordParams{ID: "r1"}))
-	require.Error(t, err)
-	apiErr, ok := err.(*APIError)
-	require.True(t, ok)
-	require.Equal(t, "NOT_ACTIVATED", apiErr.Code)
+	result, err := callTool(t, handler, ctx, tenantID, "", "update_record", UpdateRecordParams{ID: "r1"})
+	require.NoError(t, err) // tools/call doesn't return errors for domain errors
+
+	// Check that the result is a ToolCallResult with isError=true
+	toolResult, ok := result.(ToolCallResult)
+	require.True(t, ok, "result should be a ToolCallResult")
+	require.True(t, toolResult.IsError, "result should have IsError=true")
+	require.NotEmpty(t, toolResult.Content)
+	require.Contains(t, toolResult.Content[0].Text, "NOT_ACTIVATED")
 }
 
 func mustJSON(t *testing.T, v any) json.RawMessage {
@@ -320,4 +324,147 @@ func mustJSON(t *testing.T, v any) json.RawMessage {
 	data, err := json.Marshal(v)
 	require.NoError(t, err)
 	return data
+}
+
+// callTool is a helper to call tools using the MCP tools/call protocol
+func callTool(t *testing.T, handler *Handler, ctx context.Context, tenantID, sessionID, toolName string, args any) (any, error) {
+	t.Helper()
+	argsMap := make(map[string]any)
+	if args != nil {
+		// Convert args to map
+		argsJSON, err := json.Marshal(args)
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(argsJSON, &argsMap))
+	}
+	params := ToolCallParams{
+		Name:      toolName,
+		Arguments: argsMap,
+	}
+	return handler.Handle(ctx, tenantID, sessionID, "tools/call", mustJSON(t, params))
+}
+
+func TestHandler_Initialize(t *testing.T) {
+	ctx := context.Background()
+	handler := NewHandler(
+		projectStub{},
+		recordStub{},
+		sessionStub{},
+		activityStub{},
+	)
+
+	// Test successful initialize with newer version
+	result, err := handler.Handle(ctx, "", "", "initialize", mustJSON(t, InitializeParams{
+		ProtocolVersion: "2025-11-25",
+		Capabilities: ClientCapabilities{},
+		ClientInfo: ImplementationInfo{
+			Name:    "test-client",
+			Version: "1.0.0",
+		},
+	}))
+	require.NoError(t, err)
+
+	initResult, ok := result.(InitializeResult)
+	require.True(t, ok)
+	require.Equal(t, "2025-11-25", initResult.ProtocolVersion)
+	require.NotNil(t, initResult.Capabilities.Tools)
+	require.True(t, initResult.Capabilities.Tools.ListChanged)
+	require.Equal(t, "threds-mcp", initResult.ServerInfo.Name)
+
+	// Test successful initialize with older version
+	result, err = handler.Handle(ctx, "", "", "initialize", mustJSON(t, InitializeParams{
+		ProtocolVersion: "2025-03-26",
+		Capabilities: ClientCapabilities{},
+		ClientInfo: ImplementationInfo{
+			Name:    "test-client",
+			Version: "1.0.0",
+		},
+	}))
+	require.NoError(t, err)
+
+	initResult, ok = result.(InitializeResult)
+	require.True(t, ok)
+	require.Equal(t, "2025-03-26", initResult.ProtocolVersion)
+
+	// Test unsupported protocol version
+	_, err = handler.Handle(ctx, "", "", "initialize", mustJSON(t, InitializeParams{
+		ProtocolVersion: "1.0.0",
+		Capabilities: ClientCapabilities{},
+		ClientInfo: ImplementationInfo{
+			Name:    "test-client",
+			Version: "1.0.0",
+		},
+	}))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unsupported protocol version")
+}
+
+func TestHandler_ToolsList(t *testing.T) {
+	ctx := context.Background()
+	handler := NewHandler(
+		projectStub{},
+		recordStub{},
+		sessionStub{},
+		activityStub{},
+	)
+
+	result, err := handler.Handle(ctx, "", "", "tools/list", mustJSON(t, ToolsListParams{}))
+	require.NoError(t, err)
+
+	listResult, ok := result.(ToolsListResult)
+	require.True(t, ok)
+	require.Greater(t, len(listResult.Tools), 15, "should have at least 16 tools")
+
+	// Check that some expected tools exist
+	toolNames := make(map[string]bool)
+	for _, tool := range listResult.Tools {
+		toolNames[tool.Name] = true
+		require.NotEmpty(t, tool.Description)
+		require.NotNil(t, tool.InputSchema)
+	}
+
+	require.True(t, toolNames["create_project"])
+	require.True(t, toolNames["list_projects"])
+	require.True(t, toolNames["activate"])
+	require.True(t, toolNames["create_record"])
+	require.True(t, toolNames["update_record"])
+}
+
+func TestHandler_UnknownMethod(t *testing.T) {
+	ctx := context.Background()
+	handler := NewHandler(
+		projectStub{},
+		recordStub{},
+		sessionStub{},
+		activityStub{},
+	)
+
+	// Test unknown protocol method
+	_, err := handler.Handle(ctx, "tenant1", "", "unknown_method", nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown method")
+	require.Contains(t, err.Error(), "use 'tools/call'")
+
+	// Test legacy direct method call (should fail with helpful message)
+	_, err = handler.Handle(ctx, "tenant1", "", "create_project", mustJSON(t, CreateProjectParams{Name: "Test"}))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown method")
+	require.Contains(t, err.Error(), "use 'tools/call'")
+}
+
+func TestHandler_UnknownTool(t *testing.T) {
+	ctx := context.Background()
+	handler := NewHandler(
+		projectStub{},
+		recordStub{},
+		sessionStub{},
+		activityStub{},
+	)
+
+	result, err := callTool(t, handler, ctx, "tenant1", "", "nonexistent_tool", nil)
+	require.NoError(t, err) // tools/call wraps errors
+
+	toolResult, ok := result.(ToolCallResult)
+	require.True(t, ok)
+	require.True(t, toolResult.IsError)
+	require.Contains(t, toolResult.Content[0].Text, "unknown tool")
 }

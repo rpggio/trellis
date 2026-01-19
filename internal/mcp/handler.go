@@ -64,8 +64,156 @@ func NewHandler(projects ProjectService, records RecordService, sessions Session
 	}
 }
 
-// Handle dispatches MCP requests to domain services.
+// Handle dispatches MCP requests to protocol or domain handlers.
 func (h *Handler) Handle(ctx context.Context, tenantID, sessionID, method string, params json.RawMessage) (any, error) {
+	// Route to protocol methods
+	switch method {
+	case "initialize":
+		return h.handleInitialize(params)
+	case "tools/list":
+		return h.handleToolsList(params)
+	case "tools/call":
+		return h.handleToolsCall(ctx, tenantID, sessionID, params)
+	default:
+		return nil, fmt.Errorf("unknown method: %s (use 'tools/call' for domain operations)", method)
+	}
+}
+
+func decodeParams(params json.RawMessage, out any) error {
+	if len(params) == 0 {
+		return nil
+	}
+	return json.Unmarshal(params, out)
+}
+
+func (h *Handler) getProjectOrDefault(ctx context.Context, tenantID, projectID string) (*project.Project, error) {
+	if projectID == "" {
+		return h.projects.GetDefault(ctx, tenantID)
+	}
+	return h.projects.Get(ctx, tenantID, projectID)
+}
+
+func mapError(err error) error {
+	if apiErr := MapError(err); apiErr != nil {
+		return apiErr
+	}
+	return err
+}
+
+func stringValue(val *string) string {
+	if val == nil {
+		return ""
+	}
+	return *val
+}
+
+// handleInitialize implements the MCP initialize handshake
+func (h *Handler) handleInitialize(params json.RawMessage) (any, error) {
+	var req InitializeParams
+	if err := decodeParams(params, &req); err != nil {
+		return nil, err
+	}
+
+	// Support multiple protocol versions
+	supportedVersions := []string{"2025-11-25", "2025-03-26"}
+	supportedVersion := ""
+
+	for _, version := range supportedVersions {
+		if req.ProtocolVersion == version {
+			supportedVersion = version
+			break
+		}
+	}
+
+	if supportedVersion == "" {
+		return nil, fmt.Errorf("unsupported protocol version: %s (server supports %v)", req.ProtocolVersion, supportedVersions)
+	}
+
+	return InitializeResult{
+		ProtocolVersion: supportedVersion,
+		Capabilities: ServerCapabilities{
+			Tools: &ToolsCapability{
+				ListChanged: true,
+			},
+		},
+		ServerInfo: ImplementationInfo{
+			Name:    "threds-mcp",
+			Version: "0.1.0",
+		},
+		Instructions: "Threds MCP server for managing design reasoning records and sessions.",
+	}, nil
+}
+
+// handleToolsList implements the tools/list operation
+func (h *Handler) handleToolsList(params json.RawMessage) (any, error) {
+	var req ToolsListParams
+	if err := decodeParams(params, &req); err != nil {
+		return nil, err
+	}
+
+	// For now, return all tools (pagination can be added later if needed)
+	tools := buildToolCatalog()
+
+	return ToolsListResult{
+		Tools:      tools,
+		NextCursor: "", // No pagination for now
+	}, nil
+}
+
+// handleToolsCall implements the tools/call operation
+func (h *Handler) handleToolsCall(ctx context.Context, tenantID, sessionID string, params json.RawMessage) (any, error) {
+	var req ToolCallParams
+	if err := decodeParams(params, &req); err != nil {
+		return nil, err
+	}
+
+	// Marshal the arguments back to json.RawMessage for the domain handlers
+	argsJSON, err := json.Marshal(req.Arguments)
+	if err != nil {
+		return ToolCallResult{
+			Content: []ContentItem{{
+				Type: "text",
+				Text: fmt.Sprintf("Failed to marshal arguments: %v", err),
+			}},
+			IsError: true,
+		}, nil
+	}
+
+	// Dispatch to the appropriate domain handler
+	result, err := h.dispatchDomainMethod(ctx, tenantID, sessionID, req.Name, argsJSON)
+	if err != nil {
+		return ToolCallResult{
+			Content: []ContentItem{{
+				Type: "text",
+				Text: fmt.Sprintf("Error: %v", err),
+			}},
+			IsError: true,
+		}, nil
+	}
+
+	// Marshal result to JSON and wrap in MCP content format
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return ToolCallResult{
+			Content: []ContentItem{{
+				Type: "text",
+				Text: fmt.Sprintf("Failed to marshal result: %v", err),
+			}},
+			IsError: true,
+		}, nil
+	}
+
+	return ToolCallResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: string(resultJSON),
+		}},
+		IsError: false,
+	}, nil
+}
+
+// dispatchDomainMethod routes tool calls to the appropriate domain handler
+func (h *Handler) dispatchDomainMethod(ctx context.Context, tenantID, sessionID, method string, params json.RawMessage) (any, error) {
 	switch method {
 	case "create_project":
 		var req CreateProjectParams
@@ -410,34 +558,6 @@ func (h *Handler) Handle(ctx context.Context, tenantID, sessionID, method string
 		}
 		return resp, nil
 	default:
-		return nil, fmt.Errorf("unknown method: %s", method)
+		return nil, fmt.Errorf("unknown tool: %s", method)
 	}
-}
-
-func decodeParams(params json.RawMessage, out any) error {
-	if len(params) == 0 {
-		return nil
-	}
-	return json.Unmarshal(params, out)
-}
-
-func (h *Handler) getProjectOrDefault(ctx context.Context, tenantID, projectID string) (*project.Project, error) {
-	if projectID == "" {
-		return h.projects.GetDefault(ctx, tenantID)
-	}
-	return h.projects.Get(ctx, tenantID, projectID)
-}
-
-func mapError(err error) error {
-	if apiErr := MapError(err); apiErr != nil {
-		return apiErr
-	}
-	return err
-}
-
-func stringValue(val *string) string {
-	if val == nil {
-		return ""
-	}
-	return *val
 }
