@@ -145,6 +145,11 @@ func registerOrientationTools(server *sdkmcp.Server, svc Services) {
 			})
 		}
 
+		// Ensure slices are never nil (marshal as [] not null)
+		if rootRecords == nil {
+			rootRecords = []record.RecordRef{}
+		}
+
 		return nil, &ProjectOverviewResponse{
 			Project:      *proj,
 			OpenSessions: openSessions,

@@ -54,7 +54,7 @@ type SyncSessionParams struct {
 }
 
 type CreateRecordParams struct {
-	ParentID *string            `json:"parent_id"`
+	ParentID *string            `json:"parent_id,omitempty"`
 	Type     string             `json:"type"`
 	Title    string             `json:"title"`
 	Summary  string             `json:"summary"`

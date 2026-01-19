@@ -61,10 +61,13 @@ func New(t *testing.T, token, tenantID string) *TestServer {
 		Logger:      nil,
 	})
 
-	// Create HTTP handler using SDK (SSEHandler for compatibility)
-	mcpHandler := sdkmcp.NewSSEHandler(
+	// Create HTTP handler using SDK (StreamableHTTPHandler in stateless mode)
+	mcpHandler := sdkmcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *sdkmcp.Server { return mcpServer },
-		nil,
+		&sdkmcp.StreamableHTTPOptions{
+			Stateless:    true, // Stateless mode for simpler JSON-RPC interactions
+			JSONResponse: true,  // Use JSON instead of streaming
+		},
 	)
 
 	server := httptest.NewServer(mcpHandler)

@@ -3,6 +3,7 @@ package functional_test
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"testing"
 
@@ -41,6 +42,7 @@ func rpcCall(t *testing.T, ts *testserver.TestServer, sessionID, method string, 
 	req, err := http.NewRequest(http.MethodPost, ts.Server.URL+"/mcp", bytes.NewBuffer(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("Authorization", "Bearer "+ts.Token)
 	if sessionID != "" {
 		req.Header.Set("Mcp-Session-Id", sessionID)
@@ -50,11 +52,29 @@ func rpcCall(t *testing.T, ts *testserver.TestServer, sessionID, method string, 
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(bodyBytes))
+	}
 
 	var result rpcResponse
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
 	return result
+}
+
+// initializeSession performs the MCP initialize handshake
+func initializeSession(t *testing.T, ts *testserver.TestServer) {
+	t.Helper()
+
+	resp := rpcCall(t, ts, "", "initialize", map[string]any{
+		"protocolVersion": "2025-11-25",
+		"capabilities":    map[string]any{},
+		"clientInfo": map[string]any{
+			"name":    "test-client",
+			"version": "1.0.0",
+		},
+	})
+	require.Nil(t, resp.Error, "Initialize failed: %v", resp.Error)
 }
 
 // callTool makes a tools/call RPC call and unwraps the result
@@ -104,6 +124,7 @@ func TestFunctional_Authentication(t *testing.T) {
 
 func TestFunctional_ProjectAndOverview(t *testing.T) {
 	ts := testserver.New(t, "token", "tenant1")
+	initializeSession(t, ts)
 
 	create := callTool(t, ts, "", "create_project", map[string]any{
 		"name": "Project",
@@ -122,6 +143,7 @@ func TestFunctional_ProjectAndOverview(t *testing.T) {
 
 func TestFunctional_ActivationWorkflow(t *testing.T) {
 	ts := testserver.New(t, "token", "tenant1")
+	initializeSession(t, ts)
 
 	projectResp := callTool(t, ts, "", "create_project", map[string]any{"name": "Project"})
 	var project struct {
@@ -182,6 +204,7 @@ func TestFunctional_ActivationWorkflow(t *testing.T) {
 
 func TestFunctional_ConflictAndActiveSessions(t *testing.T) {
 	ts := testserver.New(t, "token", "tenant1")
+	initializeSession(t, ts)
 
 	rootResp := callTool(t, ts, "", "create_record", map[string]any{
 		"type":    "question",
@@ -220,6 +243,7 @@ func TestFunctional_ConflictAndActiveSessions(t *testing.T) {
 
 func TestFunctional_ContextLoadingAndSearch(t *testing.T) {
 	ts := testserver.New(t, "token", "tenant1")
+	initializeSession(t, ts)
 
 	parentResp := callTool(t, ts, "", "create_record", map[string]any{
 		"type":    "question",
@@ -280,6 +304,7 @@ func TestFunctional_ContextLoadingAndSearch(t *testing.T) {
 
 func TestFunctional_HistoryDiffAndActivity(t *testing.T) {
 	ts := testserver.New(t, "token", "tenant1")
+	initializeSession(t, ts)
 
 	rootResp := callTool(t, ts, "", "create_record", map[string]any{
 		"type":    "question",
@@ -315,6 +340,7 @@ func TestFunctional_HistoryDiffAndActivity(t *testing.T) {
 func TestFunctional_TenantIsolation(t *testing.T) {
 	ts := testserver.New(t, "token", "tenant1")
 	require.NoError(t, ts.AddAPIKey("token2", "tenant2"))
+	initializeSession(t, ts)
 
 	_ = callTool(t, ts, "", "create_project", map[string]any{"name": "Tenant1"})
 
