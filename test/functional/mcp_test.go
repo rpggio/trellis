@@ -114,12 +114,18 @@ func TestFunctional_Authentication(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, ts.Server.URL+"/mcp", bytes.NewBufferString(`{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_projects"},"id":1}`))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var result rpcResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	require.NotNil(t, result.Error)
+	require.Contains(t, result.Error.Message, "unauthorized")
 }
 
 func TestFunctional_ProjectAndOverview(t *testing.T) {
@@ -348,6 +354,7 @@ func TestFunctional_TenantIsolation(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, ts.Server.URL+"/mcp", bytes.NewBufferString(`{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_projects"},"id":1}`))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("Authorization", "Bearer token2")
 
 	resp, err := http.DefaultClient.Do(req)

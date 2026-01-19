@@ -317,8 +317,8 @@ func (s *Service) loadContext(ctx context.Context, tenantID string, target *reco
 		childrenByID[child.ID] = child
 	}
 
-	var openChildren []record.Record
-	var otherChildren []record.RecordRef
+	openChildren := make([]record.Record, 0)
+	otherChildren := make([]record.RecordRef, 0)
 	for _, ref := range childRefs {
 		if ref.State == record.StateOpen {
 			if full, ok := childrenByID[ref.ID]; ok {
@@ -329,7 +329,7 @@ func (s *Service) loadContext(ctx context.Context, tenantID string, target *reco
 		}
 	}
 
-	var grandchildren []record.RecordRef
+	grandchildren := make([]record.RecordRef, 0)
 	for _, ref := range childRefs {
 		refs, err := s.records.GetChildrenRefs(ctx, tenantID, ref.ID)
 		if err != nil {
@@ -353,7 +353,7 @@ func (s *Service) activationWarnings(ctx context.Context, tenantID, sessionID, r
 		return nil, fmt.Errorf("loading active sessions: %w", err)
 	}
 
-	var warnings []string
+	warnings := make([]string, 0)
 	for _, info := range sessions {
 		if info.SessionID != sessionID {
 			warnings = append(warnings, fmt.Sprintf("record active in session %s", info.SessionID))
