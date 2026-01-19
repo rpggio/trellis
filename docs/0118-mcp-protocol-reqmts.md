@@ -1,106 +1,63 @@
-## Authoritative Summary: HTTP MCP Requirements
+### Authoritative Summary: HTTP MCP Requirements (Jan 2026)
 
-### The Core Confusion: There Are Two HTTP Transports
+#### 1. The Core Transport Duality
 
-| Transport | Spec Version | Status |
-|-----------|--------------|--------|
-| **HTTP+SSE** (legacy) | 2024-11-05 | **Deprecated** (March 2025) |
-| **Streamable HTTP** | 2025-03-26 | **Current standard** |
+There remain two ways for clients to interact with HTTP-based MCP servers. The industry has standardized on the unified "Streamable HTTP" model.
 
-**Key insight:** "Streamable HTTP replaces the HTTP+SSE transport from protocol version 2024-11-05."
+| Transport | Spec Version | Status | Primary Characteristic |
+| --- | --- | --- | --- |
+| **HTTP+SSE** (legacy) | 2024-11-05 | **Deprecated** | Required two separate endpoints (`/sse` and `/messages`). |
+| **Streamable HTTP** | 2025-03-26 | **Current standard** | Uses a **single endpoint** for both POST and GET. |
 
----
-
-### Is SSE Required?
-
-**NO.** SSE is **optional** in Streamable HTTP.
-
-From the official spec: "Server can optionally make use of Server-Sent Events (SSE) to stream multiple server messages. This permits basic MCP servers, as well as more feature-rich servers supporting streaming."
-
-A minimal Streamable HTTP server:
-- **MUST** expose a single endpoint supporting POST and GET
-- **MAY** return `application/json` responses (no SSE at all)
-- **MAY** return `text/event-stream` for streaming (optional)
+**Key insight:** SSE is now **optional**. A minimal server can return standard `application/json` for simple tool calls. SSE is only triggered via `text/event-stream` when the server needs to stream a long response or send notifications.
 
 ---
 
-### Client Support Matrix (as of Jan 2026)
+#### 2. Claude Desktop (Mac) Support & Registration
 
-| Client | Streamable HTTP | Legacy SSE | Auth Required? |
-|--------|-----------------|------------|----------------|
-| **Claude.ai / Desktop** | ✅ Yes | ✅ Yes (deprecating) | No (authless OK) |
-| **Claude Code** | ✅ Yes (`--transport http`) | ✅ Yes (`--transport sse`) | No |
-| **ChatGPT** | ✅ Yes | ✅ Yes | No (OAuth optional) |
-| **OpenAI Codex** | ✅ Yes | ❌ Not mentioned | No |
+Claude Desktop for Mac (v1.x+, Jan 2026) supports both **Local (stdio)** and **Remote (HTTP)** MCP servers, but they use different registration paths.
 
-From Anthropic's help center: "Claude supports both SSE- and Streamable HTTP-based remote servers, although support for SSE may be deprecated in the coming months. Claude supports both authless and OAuth-based remote servers."
+**A. Remote HTTP Servers (The "Direct" Way)**
 
-From OpenAI docs: "The Responses API works with remote MCP servers that support either the Streamable HTTP or the HTTP/SSE transport protocols."
+* **Plan Requirement:** Limited to Pro, Max, Team, and Enterprise plans.
+* **Registration:** **MUST** be added through the UI. Navigate to **Settings > Extensions** (or **Connectors**) and click "Add Custom Connector".
+* **Constraint:** Claude Desktop will **not** connect to remote HTTP servers if they are configured directly in the `claude_desktop_config.json` file.
 
----
+**B. Local/Bridged Servers (The "JSON" Way)**
 
-### Why Claude Code Might Be Asking for SSE
-
-Possible reasons:
-1. **You're using an older Claude Code version** - check your version
-2. **Your URL format** - Claude Code uses `--transport http` for Streamable HTTP, `--transport sse` for legacy
-3. **Server detection** - if your server returns 4xx on POST, Claude Code falls back to assuming legacy SSE
-
-The GitHub issue you're probably hitting: Claude Code issue #1387 was about Streamable HTTP support being added (it's now closed/resolved).
-
----
-
-### Minimal Requirements for a Universal HTTP MCP Server
-
-```
-1. Single endpoint (e.g., /mcp)
-2. Support POST method
-3. Accept: application/json, text/event-stream header handling
-4. Return Content-Type: application/json for simple responses
-5. Validate Origin header (security requirement)
-6. JSON-RPC 2.0 message format
-```
-
-**Auth:** Optional. Both authless and OAuth work.
-
-**SSE streaming:** Optional. Only needed if you want to:
-- Send server-initiated notifications
-- Stream long-running responses
-- Support resumability
-
----
-
-### Quick Reference: Adding to Clients
-
-**Claude Code (Streamable HTTP):**
-```bash
-claude mcp add --transport http myserver https://example.com/mcp
-```
-
-**Claude Code (Legacy SSE):**
-```bash
-claude mcp add --transport sse myserver https://example.com/sse
-```
-
-**Claude Desktop config:**
+* **Plan Requirement:** Available for all tiers, including Free (as it appears as a local process).
+* **Config Path:** `~/Library/Application Support/Claude/claude_desktop_config.json`.
+* **Method:** To connect to a remote HTTP server via JSON, you must use a **bridge** (like `npx mcp-remote` or `mcp-proxy`) that converts HTTP traffic into stdio for Claude.
+* **Example JSON:**
 ```json
 {
   "mcpServers": {
-    "myserver": {
-      "url": "https://example.com/mcp"
+    "bridged-server": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://api.example.com/mcp"]
     }
   }
 }
+
 ```
 
----
 
-### Sources
-1. Official MCP Spec (2025-03-26): https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
-2. Anthropic Help Center: https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers
-3. Claude Code MCP Docs: https://code.claude.com/docs/en/mcp
-4. OpenAI Connectors/MCP: https://platform.openai.com/docs/guides/tools-connectors-mcp
 
 ---
 
-**TL;DR:** SSE is optional in the current spec. Both Claude and ChatGPT support Streamable HTTP. A plain JSON POST/response server works fine. The confusion comes from the spec evolution and client version differences.
+#### 3. Minimal Server Requirements
+
+To be a "Universal" Streamable HTTP server, your endpoint must:
+
+* **Single Endpoint:** Support both POST (for messages) and GET (for SSE initiation) on one URL.
+* **Protocol Logic:** Validate the `Origin` header to prevent CSRF and handle the `Mcp-Session-Id` if supporting persistence.
+* **JSON-RPC 2.0:** All communication must follow the JSON-RPC 2.0 structure.
+* **Content Negotiation:** Accept `application/json` for standard calls and `text/event-stream` if the client requests a stream.
+
+---
+
+#### 4. Implementation Gotchas (User-Reported)
+
+* **Response Codes:** Some users report that servers returning **HTTP 204 (No Content)** can cause connection timeouts in Claude Desktop; **HTTP 202 (Accepted)** is preferred for non-streaming notifications.
+* **Localhost Restrictions:** Claude Desktop may block `localhost` connections due to CORS. Using a tunnel (e.g., ngrok) is recommended for development.
+* **Discovery:** Servers must implement `list_tools` and `list_resources` discovery methods, or Claude will not show them in the chat interface.
