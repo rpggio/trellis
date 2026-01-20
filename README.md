@@ -2,6 +2,8 @@
 
 An MCP server providing record-based reasoning memory for design conversations.
 
+> NOTE: Threds is pre-release software, under active development
+
 ## Configuration
 
 Configuration can be provided via environment variables or a YAML file.
