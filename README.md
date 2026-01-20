@@ -1,8 +1,8 @@
 # threds-mcp
 
-Threds is a record-based memory system for design reasoning across chats. `threds-mcp` is an HTTP MCP server that stores projects/records/sessions in SQLite and lets agents sync down the minimum context they need to keep working.
+Threds is a record-based memory system for complex reasoning across chats. `threds-mcp` is an HTTP MCP server that stores projects/records/sessions in SQLite and lets agents sync down the minimum context they need to keep working.
 
-> NOTE: Pre-release software, under active development.
+> NOTE: Pre-release software, under active development. Available soon!
 
 ## Purpose
 
