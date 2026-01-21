@@ -1,7 +1,7 @@
 APP_NAME=threds-mcp
 DEFAULT_PORT=8080
 
-.PHONY: help test-unit test-integration test-functional test test-stdio build run dev clean
+.PHONY: help test-unit test-integration test-functional test test-stdio build run dev clean lint-stdout validate-mcp ci
 
 ## help: Show this help message
 help:
@@ -12,7 +12,10 @@ help:
 	@echo "  make test-unit        - Run unit tests"
 	@echo "  make test-integration - Run integration tests"
 	@echo "  make test-functional  - Run functional tests"
-	@echo "  make test-stdio       - Test stdio protocol compliance"
+	@echo "  make test-stdio       - Test stdio protocol compliance (shell script)"
+	@echo "  make lint-stdout      - Check for stdout pollution in server code"
+	@echo "  make validate-mcp     - Run MCP protocol compliance tests"
+	@echo "  make ci               - Full CI pipeline (build + test + validate)"
 	@echo "  make build            - Build the binary"
 	@echo "  make run              - Run the server with default config"
 	@echo "  make clean            - Remove build artifacts"
@@ -68,6 +71,24 @@ build:
 ## run: Run the server with default configuration
 run:
 	go run ./cmd/server
+
+## lint-stdout: Verify no fmt.Print statements in server code (pollutes stdio protocol)
+lint-stdout:
+	@echo "Checking for stdout pollution..."
+	@if grep -rn --include='*.go' 'fmt\.Print\|println(' ./cmd ./internal/mcp 2>/dev/null | grep -v '_test.go'; then \
+		echo "ERROR: Found fmt.Print/println in server code. Use slog to stderr instead."; \
+		exit 1; \
+	fi
+	@echo "✓ No stdout pollution detected"
+
+## validate-mcp: Run MCP protocol compliance checks
+validate-mcp: build lint-stdout
+	@echo "Running protocol compliance tests..."
+	THREDS_DB_PATH=:memory: go test ./test/integration -run TestStdioProtocol -v
+
+## ci: Full CI pipeline
+ci: build test validate-mcp
+	@echo "✓ CI pipeline complete"
 
 ## clean: Remove build artifacts
 clean:

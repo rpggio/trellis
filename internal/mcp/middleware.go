@@ -89,14 +89,20 @@ func sessionMiddleware() sdkmcp.Middleware {
 			}
 
 			// If not in header, check metadata (stdio transport)
+			// Note: Some notifications (like "initialized") have nil params,
+			// so we must check carefully to avoid nil pointer dereference.
 			if sessionID == "" {
-				params := req.GetParams()
-				if params != nil {
-					if meta := params.GetMeta(); meta != nil {
-						if sid, ok := meta["session_id"].(string); ok {
-							sessionID = sid
+				if params := req.GetParams(); params != nil {
+					// Use defer/recover to safely handle cases where GetMeta
+					// is called on a nil underlying value (SDK quirk)
+					func() {
+						defer func() { recover() }()
+						if meta := params.GetMeta(); meta != nil {
+							if sid, ok := meta["session_id"].(string); ok {
+								sessionID = sid
+							}
 						}
-					}
+					}()
 				}
 			}
 
