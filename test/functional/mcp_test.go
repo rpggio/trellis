@@ -445,3 +445,87 @@ func TestFunctional_MCPProtocolCompliance(t *testing.T) {
 	require.Equal(t, "text", toolCallResult.Content[0].Type)
 	require.Contains(t, toolCallResult.Content[0].Text, "Test Project")
 }
+
+func TestFunctional_DocumentationResources(t *testing.T) {
+	ts := testserver.New(t, "token", "tenant1")
+
+	// Initialize and verify instructions mention docs entrypoint
+	initResp := rpcCall(t, ts, "", "initialize", map[string]any{
+		"protocolVersion": "2025-11-25",
+		"capabilities":    map[string]any{},
+		"clientInfo": map[string]any{
+			"name":    "test-client",
+			"version": "1.0.0",
+		},
+	})
+	require.Nil(t, initResp.Error)
+
+	var initResult struct {
+		Instructions string `json:"instructions"`
+	}
+	require.NoError(t, json.Unmarshal(initResp.Result, &initResult))
+	require.Contains(t, initResult.Instructions, "threds://docs/index")
+
+	// List resources and ensure docs are discoverable
+	listResp := rpcCall(t, ts, "", "resources/list", map[string]any{})
+	require.Nil(t, listResp.Error)
+
+	var listResult struct {
+		Resources []struct {
+			URI         string `json:"uri"`
+			Name        string `json:"name"`
+			Title       string `json:"title,omitempty"`
+			Description string `json:"description,omitempty"`
+			MIMEType    string `json:"mimeType,omitempty"`
+			Size        int64  `json:"size,omitempty"`
+		} `json:"resources"`
+	}
+	require.NoError(t, json.Unmarshal(listResp.Result, &listResult))
+	require.NotEmpty(t, listResult.Resources)
+
+	byURI := make(map[string]struct {
+		Name     string
+		MIMEType string
+		Size     int64
+	}, len(listResult.Resources))
+	for _, r := range listResult.Resources {
+		byURI[r.URI] = struct {
+			Name     string
+			MIMEType string
+			Size     int64
+		}{Name: r.Name, MIMEType: r.MIMEType, Size: r.Size}
+	}
+
+	expected := []string{
+		"threds://docs/index",
+		"threds://docs/concepts",
+		"threds://docs/workflows/cold-start",
+		"threds://docs/workflows/activation-and-writing",
+		"threds://docs/workflows/conflicts",
+		"threds://docs/record-writing",
+	}
+	for _, uri := range expected {
+		r, ok := byURI[uri]
+		require.True(t, ok, "missing expected doc resource: %s", uri)
+		require.NotEmpty(t, r.Name)
+		require.Equal(t, "text/markdown", r.MIMEType)
+		require.Greater(t, r.Size, int64(0))
+	}
+
+	// Read a doc resource and verify contents
+	readResp := rpcCall(t, ts, "", "resources/read", map[string]any{"uri": "threds://docs/index"})
+	require.Nil(t, readResp.Error)
+
+	var readResult struct {
+		Contents []struct {
+			URI      string `json:"uri"`
+			MIMEType string `json:"mimeType,omitempty"`
+			Text     string `json:"text,omitempty"`
+		} `json:"contents"`
+	}
+	require.NoError(t, json.Unmarshal(readResp.Result, &readResult))
+	require.Len(t, readResult.Contents, 1)
+	require.Equal(t, "threds://docs/index", readResult.Contents[0].URI)
+	require.Equal(t, "text/markdown", readResult.Contents[0].MIMEType)
+	require.Contains(t, readResult.Contents[0].Text, "Agent Docs Index")
+}

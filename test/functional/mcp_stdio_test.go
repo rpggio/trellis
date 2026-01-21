@@ -249,3 +249,42 @@ func TestStdioFunctional_HistoryAndActivity(t *testing.T) {
 	activity := s.callTool(t, "get_recent_activity", map[string]any{})
 	require.NotEmpty(t, activity)
 }
+
+func TestStdioFunctional_DocumentationResources(t *testing.T) {
+	s := newStdioSession(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	resources, err := s.session.ListResources(ctx, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, resources.Resources)
+
+	uris := make(map[string]*sdkmcp.Resource, len(resources.Resources))
+	for _, r := range resources.Resources {
+		uris[r.URI] = r
+	}
+
+	expected := []string{
+		"threds://docs/index",
+		"threds://docs/concepts",
+		"threds://docs/workflows/cold-start",
+		"threds://docs/workflows/activation-and-writing",
+		"threds://docs/workflows/conflicts",
+		"threds://docs/record-writing",
+	}
+	for _, uri := range expected {
+		r, ok := uris[uri]
+		require.True(t, ok, "missing expected doc resource: %s", uri)
+		require.NotEmpty(t, r.Name)
+		require.Equal(t, "text/markdown", r.MIMEType)
+		require.Greater(t, r.Size, int64(0))
+	}
+
+	read, err := s.session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: "threds://docs/index"})
+	require.NoError(t, err)
+	require.NotEmpty(t, read.Contents)
+	require.Equal(t, "threds://docs/index", read.Contents[0].URI)
+	require.Equal(t, "text/markdown", read.Contents[0].MIMEType)
+	require.Contains(t, read.Contents[0].Text, "Agent Docs Index")
+}

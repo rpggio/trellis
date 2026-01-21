@@ -69,9 +69,11 @@ func NewServer(cfg Config) *sdkmcp.Server {
 		Name:    "threds-mcp",
 		Version: "0.1.0",
 	}, &sdkmcp.ServerOptions{
-		Instructions: "MCP server for managing design reasoning records and sessions",
+		Instructions: serverInstructions,
 		Logger:       cfg.Logger,
 	})
+
+	registerDocResources(server)
 
 	// Add middleware (auth + session extraction)
 	// Stdio mode: always disable auth (local dev only)

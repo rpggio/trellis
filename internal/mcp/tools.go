@@ -11,7 +11,7 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// registerTools adds all 26 MCP tools to the server.
+// registerTools adds all currently supported MCP tools to the server.
 func registerTools(server *sdkmcp.Server, svc Services) {
 	// Projects (3 tools)
 	registerProjectTools(server, svc)
@@ -54,7 +54,7 @@ func stringValue(val *string) string {
 func registerProjectTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "create_project",
-		Description: "Create a new project to organize records",
+		Description: "Create a new project (container) for records; returns the created project with its tick.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CreateProjectParams) (*sdkmcp.CallToolResult, *project.Project, error) {
 		tenantID := getTenantID(ctx)
 		proj, err := svc.Projects.Create(ctx, tenantID, project.CreateRequest{
@@ -67,7 +67,7 @@ func registerProjectTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "list_projects",
-		Description: "List all projects for the current tenant",
+		Description: "List projects for the current tenant (summaries include tick and open counts).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, _ struct{}) (*sdkmcp.CallToolResult, *ListProjectsResponse, error) {
 		tenantID := getTenantID(ctx)
 		projects, err := svc.Projects.List(ctx, tenantID)
@@ -90,7 +90,7 @@ func registerProjectTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "get_project",
-		Description: "Get details for a specific project or the default project",
+		Description: "Get a project by id, or the default project if id is omitted.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetProjectParams) (*sdkmcp.CallToolResult, *project.Project, error) {
 		tenantID := getTenantID(ctx)
 		if input.ID == "" {
@@ -106,7 +106,7 @@ func registerProjectTools(server *sdkmcp.Server, svc Services) {
 func registerOrientationTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "get_project_overview",
-		Description: "Get a comprehensive overview of a project including open sessions and root records",
+		Description: "Cold-start orientation: project tick + open sessions (with tick-gap warnings) + root record refs.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetProjectOverviewParams) (*sdkmcp.CallToolResult, *ProjectOverviewResponse, error) {
 		tenantID := getTenantID(ctx)
 		proj, err := getProjectOrDefault(ctx, svc.Projects, tenantID, input.ProjectID)
@@ -159,7 +159,7 @@ func registerOrientationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "search_records",
-		Description: "Search for records by query text, optionally filtered by state and type",
+		Description: "Browse cheaply: full-text search returning RecordRef hits (use limit to control result size).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input SearchRecordsParams) (*sdkmcp.CallToolResult, *SearchRecordsResponse, error) {
 		tenantID := getTenantID(ctx)
 		proj, err := getProjectOrDefault(ctx, svc.Projects, tenantID, input.ProjectID)
@@ -180,7 +180,7 @@ func registerOrientationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "list_records",
-		Description: "List records in a project, optionally filtered by parent, state, and type",
+		Description: "Browse cheaply: list RecordRefs by parent/state/type (use limit/offset for pagination).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input ListRecordsParams) (*sdkmcp.CallToolResult, *ListRecordsResponse, error) {
 		tenantID := getTenantID(ctx)
 		proj, err := getProjectOrDefault(ctx, svc.Projects, tenantID, input.ProjectID)
@@ -203,7 +203,7 @@ func registerOrientationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "get_record_ref",
-		Description: "Get a record reference (summary view) by ID",
+		Description: "Get a lightweight RecordRef (summary view) by record id (no body).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecordRefParams) (*sdkmcp.CallToolResult, record.RecordRef, error) {
 		tenantID := getTenantID(ctx)
 		ref, err := svc.Records.GetRef(ctx, tenantID, input.ID)
@@ -215,7 +215,7 @@ func registerOrientationTools(server *sdkmcp.Server, svc Services) {
 func registerActivationTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "activate",
-		Description: "Activate a record in the current session",
+		Description: "Enter reasoning mode: create/continue a session and load a minimal ContextBundle for a record.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input ActivateParams) (*sdkmcp.CallToolResult, *ActivateResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -237,7 +237,7 @@ func registerActivationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "sync_session",
-		Description: "Sync the current session with the latest project state",
+		Description: "Refresh a session’s staleness (tick gap). Use when resuming work or before significant edits.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input SyncSessionParams) (*sdkmcp.CallToolResult, *SyncSessionResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -270,7 +270,7 @@ func registerActivationTools(server *sdkmcp.Server, svc Services) {
 func registerMutationTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "create_record",
-		Description: "Create a new record in the current session",
+		Description: "Create a record (optionally under parent_id). If a session is active, the record is auto-activated.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CreateRecordParams) (*sdkmcp.CallToolResult, *CreateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -303,7 +303,7 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "update_record",
-		Description: "Update an existing record in the current session",
+		Description: "Update an activated record. May return a conflict unless force=true; requires a session id context.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input UpdateRecordParams) (*sdkmcp.CallToolResult, *UpdateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -337,7 +337,7 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "transition",
-		Description: "Transition a record to a new state",
+		Description: "Transition an activated record to a new workflow state (OPEN/LATER/RESOLVED/DISCARDED).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input TransitionParams) (*sdkmcp.CallToolResult, *record.Record, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -357,7 +357,7 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 func registerSessionTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "save_session",
-		Description: "Save the current session state",
+		Description: "Persist a session checkpoint (updates last_sync_tick). Uses current session or session_id argument.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input SaveSessionParams) (*sdkmcp.CallToolResult, map[string]string, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -375,7 +375,7 @@ func registerSessionTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "close_session",
-		Description: "Close the current session",
+		Description: "Close a session when a thread of work is done. Uses current session or session_id argument.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CloseSessionParams) (*sdkmcp.CallToolResult, map[string]string, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -393,7 +393,7 @@ func registerSessionTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "branch_session",
-		Description: "Create a new session branched from an existing one",
+		Description: "Create a new session branched from an existing session (optionally focused on a record).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input BranchSessionParams) (*sdkmcp.CallToolResult, *BranchSessionResponse, error) {
 		tenantID := getTenantID(ctx)
 
@@ -409,7 +409,7 @@ func registerSessionTools(server *sdkmcp.Server, svc Services) {
 func registerHistoryTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "get_record_history",
-		Description: "Get the history of changes for a record",
+		Description: "Get recent change history entries for a record (lightweight, derived from activity log).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecordHistoryParams) (*sdkmcp.CallToolResult, *GetRecordHistoryResponse, error) {
 		tenantID := getTenantID(ctx)
 
@@ -435,7 +435,7 @@ func registerHistoryTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "get_record_diff",
-		Description: "Get the diff between two versions of a record",
+		Description: "Placeholder: returns the current record for both versions; no computed diff yet.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecordDiffParams) (*sdkmcp.CallToolResult, *RecordDiffResponse, error) {
 		tenantID := getTenantID(ctx)
 
@@ -454,7 +454,7 @@ func registerHistoryTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "get_active_sessions",
-		Description: "Get all active sessions for a record",
+		Description: "Get active sessions currently associated with a record (useful for concurrency awareness).",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetActiveSessionsParams) (*sdkmcp.CallToolResult, *GetActiveSessionsResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -477,7 +477,7 @@ func registerHistoryTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "get_recent_activity",
-		Description: "Get recent activity for a project or record",
+		Description: "Get recent activity for a project or record without activating record bodies.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input GetRecentActivityParams) (*sdkmcp.CallToolResult, *GetRecentActivityResponse, error) {
 		tenantID := getTenantID(ctx)
 
@@ -512,7 +512,7 @@ func registerUtilityTools(server *sdkmcp.Server, svc Services) {
 	// ping - simple health check
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "ping",
-		Description: "Health check - returns pong",
+		Description: "Health check; returns pong.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, _ struct{}) (*sdkmcp.CallToolResult, map[string]string, error) {
 		return nil, map[string]string{"status": "pong"}, nil
 	})
