@@ -307,6 +307,9 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input UpdateRecordParams) (*sdkmcp.CallToolResult, *UpdateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
+		if input.SessionID != "" {
+			sessionID = input.SessionID
+		}
 
 		rec, conflict, err := svc.Records.Update(ctx, tenantID, record.UpdateRequest{
 			SessionID: sessionID,

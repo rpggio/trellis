@@ -64,12 +64,13 @@ type CreateRecordParams struct {
 }
 
 type UpdateRecordParams struct {
-	ID      string   `json:"id"`
-	Title   *string  `json:"title,omitempty"`
-	Summary *string  `json:"summary,omitempty"`
-	Body    *string  `json:"body,omitempty"`
-	Related []string `json:"related,omitempty"`
-	Force   bool     `json:"force,omitempty"`
+	ID        string   `json:"id"`
+	SessionID string   `json:"session_id,omitempty"`
+	Title     *string  `json:"title,omitempty"`
+	Summary   *string  `json:"summary,omitempty"`
+	Body      *string  `json:"body,omitempty"`
+	Related   []string `json:"related,omitempty"`
+	Force     bool     `json:"force,omitempty"`
 }
 
 type TransitionParams struct {
