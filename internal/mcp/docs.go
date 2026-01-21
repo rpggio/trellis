@@ -252,6 +252,30 @@ Use headings/bullets so the content compresses well:
 - Decision / next steps: what we chose and what remains.
 - Links: related record ids in ` + "`related[]`" + ` (keep references explicit).
 
+## Record completeness (the “Stranger Test”)
+
+Core principle: each record must make sense to a capable reader who:
+- can follow links to other records, but
+- has no access to the chat that produced this record, and
+- is reading months later.
+
+Concrete checks:
+1) No orphan references: if you write “the project / this approach / the previous attempt”, define it in *this* record.
+2) Context before claims: establish what you’re evaluating before you evaluate it.
+3) No session-log structure: records are not transcripts; rewrite into a coherent document instead of appending “session notes”.
+4) Summarize, don’t gesture: replace “as discussed” with the actual reasoning in a sentence or two.
+5) Identify the subject and stakes: name the actor(s) and why it matters, even if it feels redundant.
+
+Common failure patterns:
+
+| Bad | Better |
+|-----|--------|
+| “The current project addresses this.” | “The <system> addresses this by <mechanism> because <reason>.” |
+| “Previous attempt failed.” | “The 2023 attempt to build <X> failed because <Y>, which implies <Z>.” |
+| “This was explored in session 1.” | Include the relevant exploration results directly. |
+| “<Person>’s concern about <X>.” | “<Person> is concerned that <X> because <Y>, which risks <Z>.” |
+| “See <record-id> for details.” | Keep the link *and* include a one-sentence summary so this record stands alone. |
+
 ## Keep activations cheap
 
 - Prefer creating multiple small records over one massive one.

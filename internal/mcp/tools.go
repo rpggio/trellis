@@ -270,7 +270,7 @@ func registerActivationTools(server *sdkmcp.Server, svc Services) {
 func registerMutationTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "create_record",
-		Description: "Create a record (optionally under parent_id). If a session is active, the record is auto-activated.",
+		Description: "Create a record (optionally under parent_id). Write it to stand alone; see `threds://docs/record-writing`. If a session is active, the record is auto-activated.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CreateRecordParams) (*sdkmcp.CallToolResult, *CreateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -303,7 +303,7 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "update_record",
-		Description: "Update an activated record. May return a conflict unless force=true; requires a session id context.",
+		Description: "Update an activated record. Keep it self-explaining; see `threds://docs/record-writing`. May return a conflict unless force=true; requires a session id context.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input UpdateRecordParams) (*sdkmcp.CallToolResult, *UpdateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
