@@ -1,6 +1,6 @@
 # threds
 
-Threds is a record-based memory system for complex reasoning across chats. `threds` is an HTTP MCP server that stores projects/records/sessions in SQLite and lets agents sync down the minimum context they need to keep working.
+Threds is a record-based memory system for complex reasoning across chats. `threds` is an MCP server that stores projects/records/sessions in SQLite and lets agents sync down the minimum context they need to keep working. Supports stdio (default) and HTTP/SSE transports.
 
 > NOTE: Pre-release software, under active development. Available soon!
 
@@ -35,17 +35,43 @@ Threds is a record-based memory system for complex reasoning across chats. `thre
 
 References: `docs/0116-core-requirements.md`, `docs/0117-scenario-analysis.md`.
 
-## MCP Endpoint
+## MCP Endpoints
+
+### Stdio Transport (Default)
+
+The stdio transport uses stdin/stdout for JSON-RPC communication:
+
+```bash
+make dev              # Start server (stdio is default)
+# Connect via MCP client (e.g., Claude Desktop, MCP Inspector)
+```
+
+**Stdio mode characteristics:**
+- Default mode for simplicity and MCP client compatibility
+- Auth disabled (single-tenant with default tenant ID)
+- Session IDs passed via `_meta.session_id` in request params
+- Suitable for local development and Claude Desktop integration
+
+### HTTP Transport
+
+The HTTP transport uses Server-Sent Events over HTTP:
 
 - **MCP URL:** `http://127.0.0.1:8080/mcp`
 - **Health:** `http://127.0.0.1:8080/health`
-- **Auth:** enabled by default; send `Authorization: Bearer <api-key>` (or use `make dev` to disable auth locally).
+- **Auth:** enabled by default; send `Authorization: Bearer <api-key>`
+- **Session ID:** send via `Mcp-Session-Id` header
+
+```bash
+make dev-http         # Start server in HTTP mode (auth disabled)
+make run              # Production mode (auth enabled)
+```
 
 ## Make Targets
 
 ```text
 make help             - Show this help message
-make dev              - Run dev server (auth disabled, localhost:8080)
+make dev              - Run dev server (stdio, auth disabled)
+make dev-http         - Run dev server (HTTP, auth disabled, localhost:8080)
 make test             - Run all tests
 make test-unit        - Run unit tests
 make test-integration - Run integration tests
@@ -61,16 +87,20 @@ Configuration can be provided via environment variables or a YAML file.
 
 Environment variables:
 
+- `THREDS_TRANSPORT`: transport mode (`stdio` or `http`, default `stdio`)
 - `THREDS_CONFIG_PATH`: path to YAML config file (optional)
-- `THREDS_SERVER_HOST`: server host (default `0.0.0.0`)
-- `THREDS_SERVER_PORT`: server port (default `8080`)
+- `THREDS_SERVER_HOST`: server host (default `0.0.0.0`, HTTP mode only)
+- `THREDS_SERVER_PORT`: server port (default `8080`, HTTP mode only)
 - `THREDS_DB_PATH`: SQLite database path (default `threds.db`)
 - `THREDS_LOG_LEVEL`: `debug`, `info`, `warn`, `error` (default `info`)
-- `THREDS_AUTH_ENABLED`: `true` or `false` (default `true`)
+- `THREDS_AUTH_ENABLED`: `true` or `false` (default `true`, HTTP mode only)
 
 Sample YAML:
 
 ```yaml
+# Stdio is default, only specify if using HTTP
+transport:
+  mode: "http"
 server:
   host: "0.0.0.0"
   port: 8080
@@ -79,21 +109,76 @@ db:
 log:
   level: "info"
 auth:
-  enabled: true
+  enabled: true  # Only applies to HTTP mode
+```
+
+## Using with MCP Clients
+
+### Claude Desktop (Stdio)
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "threds": {
+      "command": "/path/to/threds-mcp",
+      "env": {
+        "THREDS_DB_PATH": "/path/to/threds.db"
+      }
+    }
+  }
+}
+```
+
+Stdio is the default transport, so no `THREDS_TRANSPORT` needed.
+
+### HTTP Clients
+
+Use the HTTP endpoint with bearer token:
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Mcp-Session-Id: session-123" \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+```
+
+### Session ID Handling
+
+- **HTTP transport**: Pass session ID via `Mcp-Session-Id` header
+- **Stdio transport**: Pass session ID via `_meta.session_id` in params:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "create_record",
+    "arguments": { "title": "Example" },
+    "_meta": { "session_id": "session-123" }
+  },
+  "id": 1
+}
 ```
 
 ## Run
 
 ```bash
-make dev   # local dev (auth disabled)
-make run   # go run ./cmd/server
+make dev       # local dev (stdio, auth disabled)
+make dev-http  # local dev HTTP (auth disabled)
+make run       # run with default config (stdio, auth disabled)
 ```
 
 Build a binary:
 
 ```bash
 make build
-./bin/threds-mcp
+./bin/threds-mcp  # Runs with stdio (default)
+
+# Or specify HTTP for production:
+THREDS_TRANSPORT=http THREDS_AUTH_ENABLED=true ./bin/threds-mcp
 ```
 
 ## Tests

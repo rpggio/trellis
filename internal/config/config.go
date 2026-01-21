@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
@@ -10,10 +11,15 @@ import (
 
 // Config defines server configuration.
 type Config struct {
-	Server ServerConfig `yaml:"server"`
-	DB     DBConfig     `yaml:"db"`
-	Log    LogConfig    `yaml:"log"`
-	Auth   AuthConfig   `yaml:"auth"`
+	Transport TransportConfig `yaml:"transport"`
+	Server    ServerConfig    `yaml:"server"`
+	DB        DBConfig        `yaml:"db"`
+	Log       LogConfig       `yaml:"log"`
+	Auth      AuthConfig      `yaml:"auth"`
+}
+
+type TransportConfig struct {
+	Mode string `yaml:"mode"` // "stdio" or "http"
 }
 
 type ServerConfig struct {
@@ -35,13 +41,23 @@ type AuthConfig struct {
 
 // Load reads configuration from an optional YAML file and environment variables.
 func Load() (Config, error) {
+	// Determine default DB path: same directory as binary
+	defaultDBPath := "threds.db"
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		defaultDBPath = filepath.Join(exeDir, "threds.db")
+	}
+
 	cfg := Config{
+		Transport: TransportConfig{
+			Mode: "stdio", // default to stdio for local development
+		},
 		Server: ServerConfig{
 			Host: "0.0.0.0",
 			Port: 8080,
 		},
 		DB: DBConfig{
-			Path: "threds.db",
+			Path: defaultDBPath,
 		},
 		Log: LogConfig{
 			Level: "info",
@@ -57,6 +73,9 @@ func Load() (Config, error) {
 		}
 	}
 
+	if mode := os.Getenv("THREDS_TRANSPORT"); mode != "" {
+		cfg.Transport.Mode = mode
+	}
 	if host := os.Getenv("THREDS_SERVER_HOST"); host != "" {
 		cfg.Server.Host = host
 	}

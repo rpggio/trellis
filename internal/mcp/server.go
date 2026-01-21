@@ -56,10 +56,11 @@ type Services struct {
 
 // Config contains server configuration.
 type Config struct {
-	Services    Services
-	Resolver    TenantResolver
-	AuthEnabled bool
-	Logger      *slog.Logger
+	Services      Services
+	Resolver      TenantResolver
+	AuthEnabled   bool
+	TransportMode string // "stdio" or "http"
+	Logger        *slog.Logger
 }
 
 // NewServer creates and configures an MCP server with all tools and middleware.
@@ -73,10 +74,16 @@ func NewServer(cfg Config) *sdkmcp.Server {
 	})
 
 	// Add middleware (auth + session extraction)
-	if cfg.AuthEnabled {
-		server.AddReceivingMiddleware(authMiddleware(cfg.Resolver))
-	} else {
+	// Stdio mode: always disable auth (local dev only)
+	if cfg.TransportMode == "stdio" {
 		server.AddReceivingMiddleware(noAuthMiddleware("default"))
+	} else {
+		// HTTP mode: auth based on config
+		if cfg.AuthEnabled {
+			server.AddReceivingMiddleware(authMiddleware(cfg.Resolver))
+		} else {
+			server.AddReceivingMiddleware(noAuthMiddleware("default"))
+		}
 	}
 	server.AddReceivingMiddleware(sessionMiddleware())
 

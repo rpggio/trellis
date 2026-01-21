@@ -76,16 +76,35 @@ func noAuthMiddleware(defaultTenant string) sdkmcp.Middleware {
 	}
 }
 
-// sessionMiddleware extracts session ID from Mcp-Session-Id header.
+// sessionMiddleware extracts session ID from Mcp-Session-Id header (HTTP) or metadata (stdio).
 func sessionMiddleware() sdkmcp.Middleware {
 	return func(next sdkmcp.MethodHandler) sdkmcp.MethodHandler {
 		return func(ctx context.Context, method string, req sdkmcp.Request) (sdkmcp.Result, error) {
+			var sessionID string
+
+			// Try HTTP header first (HTTP transport)
 			extra := req.GetExtra()
 			if extra != nil && extra.Header != nil {
-				if sid := extra.Header.Get("Mcp-Session-Id"); sid != "" {
-					ctx = context.WithValue(ctx, sessionIDKey, sid)
+				sessionID = extra.Header.Get("Mcp-Session-Id")
+			}
+
+			// If not in header, check metadata (stdio transport)
+			if sessionID == "" {
+				params := req.GetParams()
+				if params != nil {
+					if meta := params.GetMeta(); meta != nil {
+						if sid, ok := meta["session_id"].(string); ok {
+							sessionID = sid
+						}
+					}
 				}
 			}
+
+			// Inject session ID into context if present
+			if sessionID != "" {
+				ctx = context.WithValue(ctx, sessionIDKey, sessionID)
+			}
+
 			return next(ctx, method, req)
 		}
 	}

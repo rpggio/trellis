@@ -21,14 +21,27 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+type TransportMode string
+
+const (
+	TransportHTTP  TransportMode = "http"
+	TransportStdio TransportMode = "stdio"
+)
+
 type TestServer struct {
-	Server   *httptest.Server
-	DB       *sqlite.DB
-	Token    string
-	TenantID string
+	Server    *httptest.Server // For HTTP transport only
+	DB        *sqlite.DB
+	Token     string
+	TenantID  string
+	Mode      TransportMode
+	mcpServer *sdkmcp.Server // For stdio testing
 }
 
 func New(t *testing.T, token, tenantID string) *TestServer {
+	return NewWithTransport(t, token, tenantID, TransportHTTP)
+}
+
+func NewWithTransport(t *testing.T, token, tenantID string, mode TransportMode) *TestServer {
 	t.Helper()
 
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
@@ -49,6 +62,7 @@ func New(t *testing.T, token, tenantID string) *TestServer {
 
 	// Create MCP server with SDK
 	resolver := &apiKeyResolver{db: db}
+	authEnabled := mode == TransportHTTP // Auth only for HTTP
 	mcpServer := mcp.NewServer(mcp.Config{
 		Services: mcp.Services{
 			Projects: projectSvc,
@@ -56,35 +70,43 @@ func New(t *testing.T, token, tenantID string) *TestServer {
 			Sessions: sessionSvc,
 			Activity: activitySvc,
 		},
-		Resolver:    resolver,
-		AuthEnabled: true,
-		Logger:      nil,
+		Resolver:      resolver,
+		AuthEnabled:   authEnabled,
+		TransportMode: string(mode),
+		Logger:        nil,
 	})
-
-	// Create HTTP handler using SDK (StreamableHTTPHandler in stateless mode)
-	mcpHandler := sdkmcp.NewStreamableHTTPHandler(
-		func(r *http.Request) *sdkmcp.Server { return mcpServer },
-		&sdkmcp.StreamableHTTPOptions{
-			Stateless:    true, // Stateless mode for simpler JSON-RPC interactions
-			JSONResponse: true,  // Use JSON instead of streaming
-		},
-	)
-
-	server := httptest.NewServer(mcpHandler)
 
 	ts := &TestServer{
-		Server:   server,
-		DB:       db,
-		Token:    token,
-		TenantID: tenantID,
+		DB:        db,
+		Token:     token,
+		TenantID:  tenantID,
+		Mode:      mode,
+		mcpServer: mcpServer,
 	}
 
-	require.NoError(t, ts.AddAPIKey(token, tenantID))
+	if mode == TransportHTTP {
+		// HTTP mode: create httptest.Server
+		mcpHandler := sdkmcp.NewStreamableHTTPHandler(
+			func(r *http.Request) *sdkmcp.Server { return mcpServer },
+			&sdkmcp.StreamableHTTPOptions{
+				Stateless:    true, // Stateless mode for simpler JSON-RPC interactions
+				JSONResponse: true,  // Use JSON instead of streaming
+			},
+		)
 
-	t.Cleanup(func() {
-		server.Close()
-		_ = db.Close()
-	})
+		server := httptest.NewServer(mcpHandler)
+		ts.Server = server
+
+		require.NoError(t, ts.AddAPIKey(token, tenantID))
+
+		t.Cleanup(func() {
+			server.Close()
+			_ = db.Close()
+		})
+	} else {
+		// Stdio mode: no HTTP server needed
+		t.Cleanup(func() { _ = db.Close() })
+	}
 
 	return ts
 }

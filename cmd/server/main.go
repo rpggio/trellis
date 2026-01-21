@@ -31,7 +31,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	// Use stderr for logs in stdio mode to keep stdout clean for JSON-RPC
+	logWriter := os.Stdout
+	if cfg.Transport.Mode == "stdio" {
+		logWriter = os.Stderr
+	}
+	logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{
 		Level: parseLogLevel(cfg.Log.Level),
 	}))
 
@@ -72,11 +77,47 @@ func main() {
 			Sessions: sessionSvc,
 			Activity: activitySvc,
 		},
-		Resolver:    resolver,
-		AuthEnabled: cfg.Auth.Enabled,
-		Logger:      logger,
+		Resolver:      resolver,
+		AuthEnabled:   cfg.Auth.Enabled,
+		TransportMode: cfg.Transport.Mode,
+		Logger:        logger,
 	})
 
+	// Branch based on transport mode
+	if cfg.Transport.Mode == "stdio" {
+		runStdioMode(logger, mcpServer)
+	} else {
+		runHTTPMode(logger, mcpServer, cfg.Server.Host, cfg.Server.Port)
+	}
+}
+
+func runStdioMode(logger *slog.Logger, mcpServer *sdkmcp.Server) {
+	logger.Info("starting stdio transport", "auth", "disabled")
+
+	// Create stdio transport
+	transport := &sdkmcp.StdioTransport{}
+
+	// Setup signal handling for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-stop
+		logger.Info("shutting down")
+		cancel()
+	}()
+
+	// Run blocks until stdin closes or context is canceled
+	if err := mcpServer.Run(ctx, transport); err != nil {
+		logger.Error("stdio server error", "error", err)
+		os.Exit(1)
+	}
+}
+
+func runHTTPMode(logger *slog.Logger, mcpServer *sdkmcp.Server, host string, port int) {
 	// Create HTTP handler using SDK
 	mcpHandler := sdkmcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *sdkmcp.Server { return mcpServer },
@@ -95,7 +136,7 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	addr := fmt.Sprintf("%s:%d", host, port)
 	httpServer := &http.Server{
 		Addr:    addr,
 		Handler: router,
