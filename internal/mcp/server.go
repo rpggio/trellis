@@ -88,6 +88,8 @@ func NewServer(cfg Config) *sdkmcp.Server {
 		}
 	}
 	server.AddReceivingMiddleware(sessionMiddleware())
+	server.AddReceivingMiddleware(trafficLoggingMiddleware(cfg.Logger, "inbound"))
+	server.AddSendingMiddleware(trafficLoggingMiddleware(cfg.Logger, "outbound"))
 
 	// Register all tools
 	registerTools(server, cfg.Services)
