@@ -27,4 +27,3 @@ This is an MCP server supporting both HTTP and stdio transports. Any functional 
 ## MCP Server Development
 - Use the official Go SDK (`github.com/modelcontextprotocol/go-sdk/mcp`) for all MCP functionality
 - Never implement custom JSON-RPC handling; let the SDK handle protocol details
-- The stdio protocol tests in `test/integration/stdio_protocol_test.go` use the SDK client to verify compliance
