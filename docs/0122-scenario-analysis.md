@@ -1,367 +1,479 @@
 # Scenario Analysis: Threds MCP
 
-*Modeling chat workflows for record synchronization*
+*Modeling information flow from chat to record system*
 
 ## Design Context
 
-This document models the most significant chat scenarios for a system that maintains design reasoning across chat sessions. The system uses generic **records** organized in parent-child hierarchies within **projects**.
+This document models how information moves from ephemeral chat conversation into persistent records. The system maintains design reasoning across sessions using generic **records** organized in parent-child hierarchies within **projects**.
 
 ### Core Concepts
 
-- **Project**: Container for related work, with a logical clock (tick) for tracking activity
-- **Record**: Self-explaining unit with ID, title, summary, body, type, and workflow state
-- **Record reference**: Lightweight pointer (ID, title, summary) without body
-- **Session**: A chat's connection to the record system, tracking active records
-- **Activation**: Loading a record into session context for reasoning
+- **Project**: Container for records with a logical clock (tick)
+- **Record**: Persistent unit with ID, title, summary, body, type, and workflow state
+- **Session**: Tracks which records a chat has activated
+- **Activation**: Loading a record into session context
 - **Workflow states**: OPEN | LATER | RESOLVED | DISCARDED
-- **Tick**: Monotonic counter incremented on writes; the project's logical clock
 
-### Key Constraints
+### Key Principle: Save on Request
 
-1. Every session belongs to a project (default project when not specified)
-2. Reasoning on a record requires parent context loaded
-3. One chat at a time should reason against any given record (warning on conflict)
-4. User can override default behavior where reasonable
-5. Open sessions are assumed to contain unsaved information
-6. Staleness is measured by tick gap, not wall-clock time
+The agent only persists information when the user requests it. Rationale:
 
----
+- Only the user knows their confidence level at any moment
+- Positions may shift during conversation; early saves create noise
+- Retroactive modeling captures the user's final conviction
+- Simple concept, known to produce good output
 
-## Variable Notation
+### Notation
 
-- `R1, R2, R3...` — Records
-- `P` — Parent record
-- `C1, C2...` — Child records
+- `T1, T2, T3...` — Thoughts (information in chat, not yet persisted)
+- `R1, R2, R3...` — Records (persisted)
 - `S1, S2...` — Sessions
+- `→` — Information flow direction
 
 ---
 
-## Scenario 1: Cold Start — New Chat, Existing Project
+## Scenario 1: Cold Start — Orientation
 
-**Situation**: User opens new chat. Project has existing records.
+**Situation**: User opens new chat with existing project.
 
 ### Flow
 
 ```
-Chat opens
+User: "What's the state of the project?"
   ↓
 Agent: get_project_overview()
   → Returns: project tick, open sessions, root record refs
   ↓
-User: "Let's continue the caching design"
+Agent: [summarizes project state to user]
+  ↓
+User: "Show me the open questions"
+  ↓
+Agent: list_records(states=["OPEN"], types=["question"])
+  → Returns: record references
+  ↓
+Agent: [presents list to user]
+```
+
+### Information State
+
+| Location | Content |
+|----------|---------|
+| Chat | Project summary, list of open questions |
+| Records | Unchanged |
+
+No activation yet—browsing doesn't require it.
+
+---
+
+## Scenario 2: Resuming Work
+
+**Situation**: User wants to continue previous work.
+
+### Flow
+
+```
+User: "Let's continue the caching discussion"
   ↓
 Agent: search_records("caching")
   → Returns: [R7: "Caching strategy", state=OPEN]
   ↓
 Agent: activate(R7)
-  → Returns: {
-      record: R7 (full),
-      parent: P (full),
-      children: {
-        R12: ref (RESOLVED),
-        R13: full (OPEN)
-      }
-    }
+  → Returns: R7 (full), parent P (full), open children (full), others as refs
   ↓
-Session S1 tracks: active_records = [R7, R13]
+Agent: [presents R7 context to user]
+  ↓
+Session S1 now tracks: active_records = [R7]
 ```
 
-### Context Loading Rules
+### Information State
 
-| Relationship | State | Loaded |
-|--------------|-------|--------|
-| Parent | any | Full content |
-| Target | any | Full content |
-| Child | OPEN | Full content |
-| Child | LATER/RESOLVED/DISCARDED | Reference only |
-| Grandchild | any | Reference only |
+| Location | Content |
+|----------|---------|
+| Chat | R7 body, parent context, child summaries |
+| Records | Unchanged |
+| Session | R7 activated |
 
 ---
 
-## Scenario 2: Creating Child Records
+## Scenario 3: Conversation Without Saving
 
-**Situation**: While working on R7, a subtopic needs exploration.
+**Situation**: User explores options, changes position, reaches conclusion. No save requested yet.
 
 ### Flow
 
 ```
-Working on R7 "Caching strategy"
+[R7 "Caching strategy" activated]
   ↓
-Discussion: "Redis vs Memcached needs analysis"
+User: "Should we use Redis or Memcached?"
+  ↓
+Agent: [discusses trade-offs] → T1 (Redis pros/cons)
+  ↓
+User: "Redis seems better for persistence"
+  ↓
+Agent: [elaborates] → T2 (Redis persistence benefits)
+  ↓
+User: "Actually, we don't need persistence. Memcached is simpler."
+  ↓
+Agent: [adjusts] → T3 (Memcached simplicity argument)
+  ↓
+User: "Let's go with Memcached"
+  ↓
+Agent: [confirms] → T4 (Memcached decision)
+```
+
+### Information State
+
+| Location | Content |
+|----------|---------|
+| Chat | T1, T2, T3, T4 (full exploration, position changes) |
+| Records | Unchanged |
+
+Key: T1 and T2 (Redis direction) are superseded by T3 and T4. If we had saved eagerly, we'd have noise. Waiting for user request means we capture the final position.
+
+---
+
+## Scenario 4: Save on Request
+
+**Situation**: User asks to save the session's conclusions.
+
+### Flow
+
+```
+[Continuing from Scenario 3]
+  ↓
+User: "Save this"
+  ↓
+Agent: [models conversation retroactively]
+  - T4 represents the decision (Memcached)
+  - T3 is the rationale (simplicity, no persistence needed)
+  - T1, T2 are rejected alternatives (Redis path)
+  ↓
+Agent: create_record(
+  parent=R7,
+  type="conclusion",
+  title="Memcached selected",
+  body="[synthesized from T3, T4; notes T1, T2 as rejected path]"
+)
+  → Returns: R15
+  ↓
+Agent: transition(R7, to_state=RESOLVED, resolved_by=R15)
+  ↓
+Agent: save_session()
+```
+
+### Information Flow
+
+```
+T3, T4 (final position) → R15 (conclusion)
+T1, T2 (rejected) → mentioned in R15 as alternatives considered
+```
+
+### Information State
+
+| Location | Content |
+|----------|---------|
+| Chat | T1-T4, confirmation of save |
+| Records | R15 created, R7 resolved |
+
+---
+
+## Scenario 5: Partial Save
+
+**Situation**: User wants to save progress but work isn't complete.
+
+### Flow
+
+```
+[Working on R7, discussed T1-T5, no clear conclusion yet]
+  ↓
+User: "Save where we are"
+  ↓
+Agent: [models current state]
+  - Open question: Redis vs Memcached (T1-T3)
+  - Leaning toward: Redis for data structures (T4)
+  - Blocker: need to confirm persistence requirements (T5)
+  ↓
+Agent: update_record(R7, body="[updated with T1-T5 synthesis]")
   ↓
 Agent: create_record(
   parent=R7,
   type="question",
   title="Redis vs Memcached",
-  body="..."
+  body="[T1-T3 options, T4 current leaning, T5 blocker]"
 )
-  → Returns: R15 (new, state=OPEN, auto-activated)
-  ↓
-S1 now tracks: active_records = [R7, R13, R15]
-```
-
-### Key Point
-
-New records are automatically activated in the creating session. Parent context (R7) is already loaded.
-
----
-
-## Scenario 3: Resolving Work
-
-**Situation**: Question R15 is answered.
-
-### Flow
-
-```
-Working on R15 "Redis vs Memcached"
-  ↓
-Decision reached: "Redis for persistence support"
-  ↓
-Agent: create_record(
-  parent=R15,
-  type="conclusion",
-  title="Redis selected",
-  body="..."
-)
-  → Returns: R16
-  ↓
-Agent: transition(R15, to_state=RESOLVED, resolved_by=R16)
-  → R15.state = RESOLVED
+  → Returns: R15
   ↓
 Agent: save_session()
 ```
 
+### Information Flow
+
+```
+T1-T5 (exploration state) → R7 updated, R15 created
+```
+
+R7 remains OPEN. R15 captures the specific question for future sessions.
+
 ---
 
-## Scenario 4: Returning to Stale Session
+## Scenario 6: Multiple Save Points
 
-**Situation**: User had S1 open, closed browser. Later reopens. Other sessions made writes.
+**Situation**: Long conversation with multiple logical save points.
 
 ### Flow
 
 ```
-Chat reopens (S1 still "open" in system)
+[Session on R7 "API Design"]
+  ↓
+[Discussion about versioning: T1-T4]
+  ↓
+User: "Save the versioning decision"
+  ↓
+Agent: create_record(parent=R7, type="conclusion", title="URL path versioning", body="[T1-T4]")
+  → R15
+  ↓
+[Discussion continues about authentication: T5-T8]
+  ↓
+User: "Save this too"
+  ↓
+Agent: create_record(parent=R7, type="question", title="Auth approach", body="[T5-T8]")
+  → R16
+  ↓
+[More discussion: T9-T12]
+  ↓
+User: "Let's wrap up"
+  ↓
+Agent: update_record(R7, body="[current state summary]")
+Agent: save_session()
+Agent: close_session()
+```
+
+### Information Flow
+
+```
+T1-T4 → R15 (versioning conclusion)
+T5-T8 → R16 (auth question)
+T9-T12 + overall state → R7 update
+```
+
+---
+
+## Scenario 7: Returning to Stale Session
+
+**Situation**: User returns to chat after time away. Other work happened.
+
+### Flow
+
+```
+User: "Where were we?"
   ↓
 Agent: sync_session()
-  → Returns: {
-      project_tick: 147,
-      session_tick: 98,
-      tick_gap: 49,
-      warning: "49 writes since last sync",
-      changes: [
-        { record: R13, type: "modified", at_tick: 112 },
-        { record: R18, type: "created", at_tick: 130 }
-      ]
-    }
+  → Returns: { tick_gap: 23, status: "stale" }
   ↓
-Agent: "49 writes occurred. Some active records modified. Review changes?"
+Agent: "23 writes have occurred since we last synced. Want me to check what changed?"
+  ↓
+User: "Yes"
+  ↓
+Agent: get_recent_activity(limit=10)
+  → Returns: activity entries
+  ↓
+Agent: [summarizes relevant changes]
+  ↓
+User: "OK, let's continue"
+  ↓
+[Work proceeds]
 ```
 
-### Staleness Thresholds
+### Information State
 
-- **Mild** (10-50 tick gap): "Some activity elsewhere"
-- **Moderate** (50-200): "Significant work happened"
-- **Severe** (200+): "Very out of date"
-
-Sessions are never auto-closed (may have unsaved thoughts).
+Session baseline refreshed. Agent has informed user of external changes.
 
 ---
 
-## Scenario 5: Parallel Sessions — Conflict Warning
+## Scenario 8: Conflict on Activation
 
-**Situation**: S1 has R7 active. User opens S2, tries to work on R7.
+**Situation**: Record is active in another session.
 
 ### Flow
 
 ```
-S2 opens
+User: "Let's work on the caching strategy"
   ↓
 Agent: activate(R7)
-  → Returns: {
-      warning: "R7 active in session S1 (10 min ago)",
-      conflict: true,
-      record: R7 (full)
-    }
+  → Returns: { warning: "R7 active in S1", conflict: true, record: R7 }
   ↓
-Agent: "This record is active elsewhere. Close other session, or continue anyway?"
+Agent: "This record is active in another session. Work on it anyway, or choose something else?"
   ↓
-User: "Continue"
+User: "Go ahead"
   ↓
-[Work proceeds; update_record may return merge conflicts]
+[Work proceeds with conflict awareness]
 ```
 
-### Conflict Resolution
+If user later saves and S1 also saved:
 
-- Warn on activation, require acknowledgment
-- Present merge conflicts on save if concurrent edits
-- User can force update with `force=true`
+```
+Agent: update_record(R7, body="...")
+  → Returns: { conflict: true, other_version: "..." }
+  ↓
+Agent: "R7 was modified in another session. Here's their version: [...].
+        Keep yours, keep theirs, or merge?"
+  ↓
+User: "Merge these points..."
+  ↓
+Agent: update_record(R7, body="[merged]", force=true)
+```
 
 ---
 
-## Scenario 6: Review Mode — Surveying Open Work
+## Scenario 9: Creating New Work
 
-**Situation**: User wants overview before deciding what to work on.
+**Situation**: User starts fresh topic.
 
 ### Flow
 
 ```
-New chat
+User: "I want to think through our deployment strategy"
   ↓
-User: "What's open?"
+Agent: search_records("deployment")
+  → Returns: [] (nothing exists)
   ↓
-Agent: get_project_overview()
-  → Returns: {
-      open_sessions: [S1],
-      root_records: [R1, R7, R22]
-    }
+Agent: "No existing records on deployment. Want me to create a starting point when we're ready to save?"
   ↓
-Agent: list_records(states=["OPEN"])
-  → Returns all open records
+User: "Sure. Let's discuss..."
   ↓
-Agent presents summary (no activation yet)
+[Discussion: T1-T6]
   ↓
-User: "Let's work on the caching stuff"
-  ↓
-Agent: activate(R7)
-```
-
-### Key Point
-
-Browsing (search, list, overview) doesn't require activation. Activation is for reasoning—when creating, modifying, or transitioning records.
-
----
-
-## Scenario 7: Navigating Hierarchy
-
-**Situation**: While on R15, user wants to revisit grandparent.
-
-### Flow
-
-```
-R15 active, R7 loaded as parent
-  ↓
-User: "Let's look at the project scope"
-  ↓
-Agent: activate(P)
-  → Returns P with its children as refs
-  ↓
-S1 now tracks: active_records = [R15, P]
-```
-
-A session can have multiple records active for comparison or navigation.
-
----
-
-## Scenario 8: Creating Root Records
-
-**Situation**: Starting new line of reasoning.
-
-### Flow
-
-```
-User: "New topic: authentication approaches"
+User: "Save this"
   ↓
 Agent: create_record(
   parent=null,
   type="question",
-  title="Authentication approach",
-  body="..."
+  title="Deployment strategy",
+  body="[T1-T6 synthesis]"
 )
-  → Returns: R23 (root, auto-activated)
+  → R20 (root record)
 ```
 
-Root records have no parent. They're entry points for distinct topics.
+### Information Flow
+
+```
+T1-T6 → R20 (new root)
+```
 
 ---
 
-## Scenario 9: Discarding Work
+## Scenario 10: Discarding Work
 
-**Situation**: Line of reasoning was a dead end.
+**Situation**: Exploration was a dead end.
 
 ### Flow
 
 ```
-Working on R15
+[Working on R15 "Redis evaluation"]
   ↓
-User: "This was misguided, abandon it"
+[Discussion T1-T4 reveals Redis won't work]
   ↓
-Agent: transition(R15, to_state=DISCARDED, reason="Approach invalid")
+User: "This whole direction is wrong. Let's abandon it."
   ↓
-Agent: "R15 has 2 children. Discard them too?"
+Agent: transition(R15, to_state=DISCARDED, reason="[T4 summary: why it won't work]")
+  ↓
+Agent: "R15 has child records. Discard them too?"
   ↓
 User: "Yes"
   ↓
 Agent: transition(R16, to_state=DISCARDED, reason="Parent discarded")
 ```
 
-DISCARDED records persist for history but don't load as full context.
+### Information Flow
+
+```
+T4 (reason for abandonment) → R15 transition reason
+```
+
+DISCARDED records persist for history but won't load as active context.
 
 ---
 
-## Scenario 10: Deferring Work
+## Scenario 11: Deferring Work
 
-**Situation**: Question valid but not actionable now.
+**Situation**: Can't proceed without external input.
 
 ### Flow
 
 ```
-Working on R15
+[Working on R15 "Cache sizing"]
   ↓
-User: "Can't decide until we know scale requirements"
+User: "We can't decide this until we have production metrics"
   ↓
-Agent: transition(R15, to_state=LATER, reason="Blocked on scale analysis")
+Agent: transition(R15, to_state=LATER, reason="Blocked on production metrics")
   ↓
-[Future session]
+Agent: update_record(R15, body="[current state + what's needed to unblock]")
   ↓
-Agent: list_records(states=["LATER"])
-  → Returns deferred records
+Agent: save_session()
 ```
 
-LATER indicates intentional deferral. Record body should capture why.
+LATER records surface in `list_records(states=["LATER"])` for future review.
 
 ---
 
-## Scenario 11: Activity Review
+## Scenario 12: Using Threads (Opt-in)
 
-**Situation**: Understanding recent project activity.
+**Situation**: User wants conversational work grouped.
 
 ### Flow
 
 ```
-User: "What happened recently?"
+User: "Start a thread for API exploration"
   ↓
-Agent: get_recent_activity(limit=20)
-  → Returns activity entries
+Agent: create_record(type="thread", title="API exploration", body="[initial context]")
+  → R30 (thread)
   ↓
-Agent summarizes without activating records
+[Discussion: T1-T5]
   ↓
-User: "What changed in R7?"
+User: "Save the versioning question"
   ↓
-Agent: get_record_history(R7)
-  → Returns change history
+Agent: create_record(parent=R30, type="question", title="API versioning", body="[T1-T5]")
+  → R31 (under thread)
+  ↓
+[More discussion: T6-T10]
+  ↓
+User: "Save this conclusion"
+  ↓
+Agent: create_record(parent=R30, type="conclusion", title="REST over GraphQL", body="[T6-T10]")
+  → R32 (under thread)
+  ↓
+User: "Close the thread"
+  ↓
+Agent: transition(R30, to_state=RESOLVED, reason="API decisions complete")
 ```
 
-Activity log provides cross-session awareness for orientation.
+### Information Flow
+
+```
+T1-T5 → R31 (question under thread)
+T6-T10 → R32 (conclusion under thread)
+Thread R30 groups the conversational artifacts
+```
 
 ---
 
 ## Command Summary
 
-### Orientation (no activation needed)
+### Orientation (no activation)
 
 | Command | Purpose |
 |---------|---------|
 | `get_project_overview()` | Project state, sessions, roots |
 | `search_records(query)` | Find by content |
-| `list_records(filters)` | List by state/type |
-| `get_record_ref(id)` | Reference without activation |
-| `get_recent_activity()` | Cross-session activity |
+| `list_records(filters)` | Browse by state/type |
+| `get_record_ref(id)` | Lightweight lookup |
+| `get_recent_activity()` | Cross-session awareness |
 
 ### Reasoning (requires activation)
 
 | Command | Purpose |
 |---------|---------|
-| `activate(id)` | Load context for reasoning |
+| `activate(id)` | Load context |
 | `create_record(...)` | Create record |
 | `update_record(id, ...)` | Modify content |
 | `transition(id, state)` | Change workflow state |
@@ -370,22 +482,17 @@ Activity log provides cross-session awareness for orientation.
 
 | Command | Purpose |
 |---------|---------|
-| `sync_session()` | Pull changes, check staleness |
+| `sync_session()` | Check staleness |
 | `save_session()` | Checkpoint |
 | `close_session()` | End session |
 
 ---
 
-## Edge Cases
+## Information Flow Principles
 
-### Orphaned Records
-
-If parent is DISCARDED, prompt user about children. Don't cascade silently.
-
-### Deep Hierarchies
-
-Warn at depth > 5. Hard limit at 10.
-
-### Circular References
-
-Records form a tree. Use `related` field for cross-references without cycles.
+1. **Chat is ephemeral**: T1, T2, T3... exist only in conversation until saved
+2. **Records are durable**: R1, R2, R3... persist across sessions
+3. **Save on request**: Agent waits for user to indicate readiness
+4. **Retroactive modeling**: Final position captured, not every position change
+5. **Synthesis over transcript**: Records distill conversation, don't reproduce it
+6. **Self-explaining records**: Each record comprehensible without originating chat
