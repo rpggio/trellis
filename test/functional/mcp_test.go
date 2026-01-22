@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ganot/threds-mcp/internal/testserver"
+	"github.com/rpggio/trellis/internal/testserver"
 	"github.com/stretchr/testify/require"
 )
 
@@ -415,7 +415,7 @@ func TestFunctional_MCPProtocolCompliance(t *testing.T) {
 	require.NoError(t, json.Unmarshal(initResp.Result, &initResult))
 	require.Equal(t, "2025-03-26", initResult.ProtocolVersion)
 	require.True(t, initResult.Capabilities.Tools.ListChanged)
-	require.Equal(t, "threds-mcp", initResult.ServerInfo.Name)
+	require.Equal(t, "trellis", initResult.ServerInfo.Name)
 
 	// Test tools/list discovery
 	toolsResp := rpcCall(t, ts, "", "tools/list", map[string]any{})
@@ -483,7 +483,7 @@ func TestFunctional_DocumentationResources(t *testing.T) {
 		Instructions string `json:"instructions"`
 	}
 	require.NoError(t, json.Unmarshal(initResp.Result, &initResult))
-	require.Contains(t, initResult.Instructions, "threds://docs/index")
+	require.Contains(t, initResult.Instructions, "trellis://docs/index")
 
 	// List resources and ensure docs are discoverable
 	listResp := rpcCall(t, ts, "", "resources/list", map[string]any{})
@@ -516,12 +516,12 @@ func TestFunctional_DocumentationResources(t *testing.T) {
 	}
 
 	expected := []string{
-		"threds://docs/index",
-		"threds://docs/concepts",
-		"threds://docs/workflows/cold-start",
-		"threds://docs/workflows/activation-and-writing",
-		"threds://docs/workflows/conflicts",
-		"threds://docs/record-writing",
+		"trellis://docs/index",
+		"trellis://docs/concepts",
+		"trellis://docs/workflows/cold-start",
+		"trellis://docs/workflows/activation-and-writing",
+		"trellis://docs/workflows/conflicts",
+		"trellis://docs/record-writing",
 	}
 	for _, uri := range expected {
 		r, ok := byURI[uri]
@@ -532,7 +532,7 @@ func TestFunctional_DocumentationResources(t *testing.T) {
 	}
 
 	// Read a doc resource and verify contents
-	readResp := rpcCall(t, ts, "", "resources/read", map[string]any{"uri": "threds://docs/index"})
+	readResp := rpcCall(t, ts, "", "resources/read", map[string]any{"uri": "trellis://docs/index"})
 	require.Nil(t, readResp.Error)
 
 	var readResult struct {
@@ -544,7 +544,7 @@ func TestFunctional_DocumentationResources(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(readResp.Result, &readResult))
 	require.Len(t, readResult.Contents, 1)
-	require.Equal(t, "threds://docs/index", readResult.Contents[0].URI)
+	require.Equal(t, "trellis://docs/index", readResult.Contents[0].URI)
 	require.Equal(t, "text/markdown", readResult.Contents[0].MIMEType)
 	require.Contains(t, readResult.Contents[0].Text, "Agent Docs Index")
 }

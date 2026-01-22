@@ -16,10 +16,10 @@ import (
 // tests might miss.
 func TestStdioProtocolCompliance(t *testing.T) {
 	// Build the server first if binary doesn't exist
-	binaryPath := "./bin/threds-mcp"
+	binaryPath := "./bin/trellis"
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		// Try relative to test directory
-		binaryPath = "../../bin/threds-mcp"
+		binaryPath = "../../bin/trellis"
 		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 			t.Skip("Server binary not found. Run 'make build' first.")
 		}
@@ -31,8 +31,8 @@ func TestStdioProtocolCompliance(t *testing.T) {
 	// Create command with environment
 	cmd := exec.CommandContext(ctx, binaryPath)
 	cmd.Env = append(os.Environ(),
-		"THREDS_TRANSPORT=stdio",
-		"THREDS_DB_PATH=:memory:",
+		"TRELLIS_TRANSPORT=stdio",
+		"TRELLIS_DB_PATH=:memory:",
 	)
 
 	// Spawn server as subprocess using SDK's CommandTransport
@@ -56,7 +56,7 @@ func TestStdioProtocolCompliance(t *testing.T) {
 		initResult := session.InitializeResult()
 		require.NotNil(t, initResult)
 		require.NotNil(t, initResult.ServerInfo)
-		require.Equal(t, "threds-mcp", initResult.ServerInfo.Name)
+		require.Equal(t, "trellis", initResult.ServerInfo.Name)
 		require.Equal(t, "0.1.0", initResult.ServerInfo.Version)
 	})
 
@@ -133,9 +133,9 @@ func TestStdioProtocolCompliance(t *testing.T) {
 // anything to stdout except valid JSON-RPC messages.
 func TestStdioProtocol_StdoutHygiene(t *testing.T) {
 	// Build the server first if binary doesn't exist
-	binaryPath := "./bin/threds-mcp"
+	binaryPath := "./bin/trellis"
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		binaryPath = "../../bin/threds-mcp"
+		binaryPath = "../../bin/trellis"
 		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 			t.Skip("Server binary not found. Run 'make build' first.")
 		}
@@ -147,8 +147,8 @@ func TestStdioProtocol_StdoutHygiene(t *testing.T) {
 	// Run server with a simple initialize request and capture stdout/stderr
 	cmd := exec.CommandContext(ctx, binaryPath)
 	cmd.Env = append(os.Environ(),
-		"THREDS_TRANSPORT=stdio",
-		"THREDS_DB_PATH=:memory:",
+		"TRELLIS_TRANSPORT=stdio",
+		"TRELLIS_DB_PATH=:memory:",
 	)
 
 	stdin, err := cmd.StdinPipe()

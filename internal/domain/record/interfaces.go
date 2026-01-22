@@ -3,7 +3,7 @@ package record
 import (
 	"context"
 
-	"github.com/ganot/threds-mcp/internal/domain/activity"
+	"github.com/rpggio/trellis/internal/domain/activity"
 )
 
 // RecordRepository provides persistence for records.

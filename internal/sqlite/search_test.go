@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ganot/threds-mcp/internal/domain/record"
+	"github.com/rpggio/trellis/internal/domain/record"
 	"github.com/stretchr/testify/require"
 )
 

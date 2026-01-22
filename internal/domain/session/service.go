@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/repository"
+	"github.com/rpggio/trellis/internal/domain/record"
+	"github.com/rpggio/trellis/internal/repository"
 	"github.com/google/uuid"
 )
 

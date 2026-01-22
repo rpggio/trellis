@@ -1,4 +1,4 @@
-# Scenario Analysis: Threds MCP
+# Scenario Analysis: Trellis Memory
 
 *Modeling information flow from chat to record system*
 

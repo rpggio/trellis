@@ -1,6 +1,6 @@
-# Strategy: Agent-Facing Documentation for `threds-mcp`
+# Strategy: Agent-Facing Documentation for `trellis`
 
-This doc explores options for documenting the `threds-mcp` MCP server for LLM agents in a way that:
+This doc explores options for documenting the `trellis` MCP server for LLM agents in a way that:
 
 - minimizes context bloat (keeps the agent’s working set small)
 - minimizes round trips (avoids “doc fetch” + “do work” ping-pong)

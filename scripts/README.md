@@ -1,12 +1,12 @@
-# Threds MCP Deployment Scripts
+# Trellis Memory Deployment Scripts
 
-This directory contains scripts for deploying and configuring standalone threds-mcp servers on Mac.
+This directory contains scripts for deploying and configuring standalone trellis servers on Mac.
 
 ## Scripts Overview
 
 ### 1. `deploy-standalone.sh`
 
-Deploys a complete standalone threds-mcp server to a specified directory.
+Deploys a complete standalone trellis server to a specified directory.
 
 **Usage:**
 ```bash
@@ -15,7 +15,7 @@ Deploys a complete standalone threds-mcp server to a specified directory.
 
 **Example:**
 ```bash
-./deploy-standalone.sh ~/threds-deployments/my-project
+./deploy-standalone.sh ~/trellis-deployments/my-project
 ```
 
 **What it does:**
@@ -34,7 +34,7 @@ Deploys a complete standalone threds-mcp server to a specified directory.
 
 ### 2. `generate-sample-data.sh`
 
-Populates a running threds server with realistic sample data.
+Populates a running trellis server with realistic sample data.
 
 **Usage:**
 ```bash
@@ -44,12 +44,12 @@ Populates a running threds server with realistic sample data.
 **Example:**
 ```bash
 # First, start the server
-cd ~/threds-deployments/my-project
+cd ~/trellis-deployments/my-project
 ./start.sh
 
 # Then generate sample data
-cd /path/to/threds-mcp
-./scripts/generate-sample-data.sh ~/threds-deployments/my-project
+cd /path/to/trellis
+./scripts/generate-sample-data.sh ~/trellis-deployments/my-project
 ```
 
 **What it does:**
@@ -74,7 +74,7 @@ cd /path/to/threds-mcp
 
 ### 3. `register-claude-desktop.sh`
 
-Prints the UI steps to register the threds server with Claude Desktop on Mac.
+Prints the UI steps to register the trellis server with Claude Desktop on Mac.
 
 **Usage:**
 ```bash
@@ -84,10 +84,10 @@ Prints the UI steps to register the threds server with Claude Desktop on Mac.
 **Examples:**
 ```bash
 # Auto-generate random suffix
-./register-claude-desktop.sh ~/threds-deployments/my-project
+./register-claude-desktop.sh ~/trellis-deployments/my-project
 
 # Use custom suffix
-./register-claude-desktop.sh ~/threds-deployments/my-project my-project
+./register-claude-desktop.sh ~/trellis-deployments/my-project my-project
 ```
 
 **What it does:**
@@ -97,8 +97,8 @@ Prints the UI steps to register the threds server with Claude Desktop on Mac.
 - Prints the exact values to enter in the Claude Desktop UI (https required)
 
 **Server naming:**
-- Default: `threds-<random_hex>` (e.g., `threds-a3f2c1d9`)
-- Custom: `threds-<your_suffix>` (e.g., `threds-my-project`)
+- Default: `trellis-<random_hex>` (e.g., `trellis-a3f2c1d9`)
+- Custom: `trellis-<your_suffix>` (e.g., `trellis-my-project`)
 
 **Requirements:**
 - macOS only
@@ -109,24 +109,24 @@ Prints the UI steps to register the threds server with Claude Desktop on Mac.
 
 ## Complete Workflow
 
-Here's a typical workflow to set up a new threds server:
+Here's a typical workflow to set up a new trellis server:
 
 ```bash
 # 1. Deploy a standalone server
-./scripts/deploy-standalone.sh ~/threds-servers/design-project
+./scripts/deploy-standalone.sh ~/trellis-servers/design-project
 
 # 2. Start the server
-cd ~/threds-servers/design-project
+cd ~/trellis-servers/design-project
 ./start.sh
 
 # Wait a moment for server to start...
 
 # 3. Generate sample data (optional but recommended)
-cd /path/to/threds-mcp
-./scripts/generate-sample-data.sh ~/threds-servers/design-project
+cd /path/to/trellis
+./scripts/generate-sample-data.sh ~/trellis-servers/design-project
 
 # 4. Print Claude Desktop UI steps
-./scripts/register-claude-desktop.sh ~/threds-servers/design-project design-project
+./scripts/register-claude-desktop.sh ~/trellis-servers/design-project design-project
 
 # 5. Add the connector in Claude Desktop UI
 
@@ -134,28 +134,28 @@ cd /path/to/threds-mcp
 
 # 7. Test in Claude
 # Open Claude Desktop and ask:
-# "Can you list my threds projects?"
+# "Can you list my trellis projects?"
 ```
 
 ## Multiple Deployments
 
-You can run multiple threds servers simultaneously for different projects:
+You can run multiple trellis servers simultaneously for different projects:
 
 ```bash
 # Deploy multiple servers on different ports
-./deploy-standalone.sh ~/threds-servers/project-a
-# Edit ~/threds-servers/project-a/config.yaml to use port 8080
+./deploy-standalone.sh ~/trellis-servers/project-a
+# Edit ~/trellis-servers/project-a/config.yaml to use port 8080
 
-./deploy-standalone.sh ~/threds-servers/project-b
-# Edit ~/threds-servers/project-b/config.yaml to use port 8081
+./deploy-standalone.sh ~/trellis-servers/project-b
+# Edit ~/trellis-servers/project-b/config.yaml to use port 8081
 
-./deploy-standalone.sh ~/threds-servers/project-c
-# Edit ~/threds-servers/project-c/config.yaml to use port 8082
+./deploy-standalone.sh ~/trellis-servers/project-c
+# Edit ~/trellis-servers/project-c/config.yaml to use port 8082
 
 # Print UI steps for each unique name
-./register-claude-desktop.sh ~/threds-servers/project-a project-a
-./register-claude-desktop.sh ~/threds-servers/project-b project-b
-./register-claude-desktop.sh ~/threds-servers/project-c project-c
+./register-claude-desktop.sh ~/trellis-servers/project-a project-a
+./register-claude-desktop.sh ~/trellis-servers/project-b project-b
+./register-claude-desktop.sh ~/trellis-servers/project-c project-c
 
 # Add each connector in Claude Desktop UI
 ```
@@ -166,14 +166,14 @@ Claude will see all registered servers as separate MCP servers.
 
 The scripts focus on Claude Desktop, but you can manually register with other clients:
 Local deployments default to auth disabled; omit Authorization headers unless you
-enable auth in `config.yaml` or `THREDS_AUTH_ENABLED`.
+enable auth in `config.yaml` or `TRELLIS_AUTH_ENABLED`.
 
 ### Cline (VS Code)
 
 Edit Cline settings and add:
 ```json
 {
-  "threds": {
+  "trellis": {
     "url": "http://127.0.0.1:8080/mcp"
   }
 }
@@ -182,7 +182,7 @@ Edit Cline settings and add:
 ### Claude Code CLI
 
 ```bash
-claude-code config set mcp.servers.threds.url "http://127.0.0.1:8080/mcp"
+claude-code config set mcp.servers.trellis.url "http://127.0.0.1:8080/mcp"
 ```
 
 ### Generic MCP Client
@@ -200,7 +200,7 @@ Connection details:
 lsof -i :8080
 
 # Check server logs
-cd ~/threds-servers/my-project
+cd ~/trellis-servers/my-project
 ./start.sh
 # Logs will appear in terminal
 ```
@@ -232,7 +232,7 @@ curl -X POST http://127.0.0.1:8080/rpc \
 
 ```bash
 # Regenerate API key
-cd ~/threds-servers/my-project
+cd ~/trellis-servers/my-project
 source .env
 
 # Generate new key
@@ -240,21 +240,21 @@ NEW_KEY=$(openssl rand -hex 32)
 KEY_HASH=$(echo -n "$NEW_KEY" | openssl dgst -sha256 -binary | xxd -p -c 256)
 
 # Update database
-sqlite3 data/threds.db "UPDATE api_keys SET key_hash = '$KEY_HASH';"
+sqlite3 data/trellis.db "UPDATE api_keys SET key_hash = '$KEY_HASH';"
 
 # Update .env file
-sed -i '' "s/THREDS_API_KEY=.*/THREDS_API_KEY=$NEW_KEY/" .env
+sed -i '' "s/TRELLIS_API_KEY=.*/TRELLIS_API_KEY=$NEW_KEY/" .env
 
 # Re-register with Claude
-cd /path/to/threds-mcp
-./scripts/register-claude-desktop.sh ~/threds-servers/my-project
+cd /path/to/trellis
+./scripts/register-claude-desktop.sh ~/trellis-servers/my-project
 ```
 
 ## Security Notes
 
 - API keys are stored in plaintext in `.env` files
 - Keys are hashed (SHA256) in the database
-- Local deployments disable auth by default (set `THREDS_AUTH_ENABLED=true` to enable)
+- Local deployments disable auth by default (set `TRELLIS_AUTH_ENABLED=true` to enable)
 - Default deployment binds to `127.0.0.1` (localhost only)
 - For remote access, update `config.yaml` and add proper authentication/TLS
 - Keep `.env` files secure and don't commit them to version control
@@ -285,7 +285,7 @@ log:
 Edit `config.yaml`:
 ```yaml
 db:
-  path: "/path/to/custom/location/threds.db"
+  path: "/path/to/custom/location/trellis.db"
 ```
 
 ## Uninstalling
@@ -294,14 +294,14 @@ To remove a deployment:
 
 ```bash
 # 1. Stop the server
-cd ~/threds-servers/my-project
+cd ~/trellis-servers/my-project
 ./stop.sh
 
 # 2. Remove registration from Claude Desktop
-# Settings → Extensions/Connectors → Remove the threds connector
+# Settings → Extensions/Connectors → Remove the trellis connector
 
 # 3. Delete deployment directory
-rm -rf ~/threds-servers/my-project
+rm -rf ~/trellis-servers/my-project
 ```
 
 ## Development vs. Production

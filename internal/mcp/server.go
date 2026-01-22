@@ -4,10 +4,10 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/ganot/threds-mcp/internal/domain/activity"
-	"github.com/ganot/threds-mcp/internal/domain/project"
-	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/domain/session"
+	"github.com/rpggio/trellis/internal/domain/activity"
+	"github.com/rpggio/trellis/internal/domain/project"
+	"github.com/rpggio/trellis/internal/domain/record"
+	"github.com/rpggio/trellis/internal/domain/session"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -65,7 +65,7 @@ type Config struct {
 // NewServer creates and configures an MCP server with all tools and middleware.
 func NewServer(cfg Config) *sdkmcp.Server {
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{
-		Name:    "threds-mcp",
+		Name:    "trellis",
 		Version: "0.1.0",
 	}, &sdkmcp.ServerOptions{
 		Instructions: serverInstructions,

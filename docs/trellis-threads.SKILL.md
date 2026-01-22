@@ -1,9 +1,9 @@
 ---
-name: threds-threads
-description: Optional threading layer for threds MCP. Threads group conversational records (questions, explorations) that belong to a single reasoning flow. Use threads when you want session-contextual work separated from project-level artifacts.
+name: trellis-threads
+description: Optional threading layer for Trellis Memory. Threads group conversational records (questions, explorations) that belong to a single reasoning flow. Use threads when you want session-contextual work separated from project-level artifacts.
 ---
 
-# Threads Skill for Threds MCP
+# Threads Skill for Trellis Memory
 
 Threads are an optional organizational layer. A thread is a record with `type="thread"` that groups conversational work belonging to a single reasoning flow. Threads help separate session-contextual exploration from project-level artifacts that outlive any conversation.
 

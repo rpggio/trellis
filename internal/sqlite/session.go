@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ganot/threds-mcp/internal/domain/session"
-	"github.com/ganot/threds-mcp/internal/repository"
+	"github.com/rpggio/trellis/internal/domain/session"
+	"github.com/rpggio/trellis/internal/repository"
 )
 
 // SessionRepository implements repository.SessionRepository for SQLite

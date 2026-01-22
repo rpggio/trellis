@@ -1,20 +1,20 @@
 #!/bin/bash
 set -e
 
-# Print Claude Desktop registration steps for threds-mcp on Mac
+# Print Claude Desktop registration steps for trellis on Mac
 
 usage() {
     echo "Usage: $0 <deployment_directory> [server_name_suffix]"
     echo ""
-    echo "Prints UI steps to register threds-mcp with Claude Desktop for Mac."
+    echo "Prints UI steps to register trellis with Claude Desktop for Mac."
     echo ""
     echo "Arguments:"
-    echo "  deployment_directory  - Path to the deployed threds server"
+    echo "  deployment_directory  - Path to the deployed trellis server"
     echo "  server_name_suffix    - Optional suffix for the server name (default: random)"
     echo ""
     echo "Example:"
-    echo "  $0 ~/my-threds-deployment"
-    echo "  $0 ~/my-threds-deployment my-project"
+    echo "  $0 ~/my-trellis-deployment"
+    echo "  $0 ~/my-trellis-deployment my-project"
     exit 1
 }
 
@@ -41,10 +41,10 @@ fi
 
 # Load configuration
 source "$DEPLOY_DIR/.env"
-SERVER_HOST="${THREDS_SERVER_HOST:-127.0.0.1}"
-SERVER_PORT="${THREDS_SERVER_PORT:-8080}"
-SERVER_NAME="threds-${NAME_SUFFIX}"
-AUTH_ENABLED="${THREDS_AUTH_ENABLED:-true}"
+SERVER_HOST="${TRELLIS_SERVER_HOST:-127.0.0.1}"
+SERVER_PORT="${TRELLIS_SERVER_PORT:-8080}"
+SERVER_NAME="trellis-${NAME_SUFFIX}"
+AUTH_ENABLED="${TRELLIS_AUTH_ENABLED:-true}"
 
 CLAUDE_APP_PLIST="/Applications/Claude.app/Contents/Info.plist"
 MIN_CLAUDE_VERSION="1.1.0"
@@ -121,7 +121,7 @@ echo ""
 echo "3. In a new Claude conversation, the server will be available as: $SERVER_NAME"
 echo ""
 echo "4. Test by asking Claude to list your projects:"
-echo "   \"Can you list my threds projects?\""
+echo "   \"Can you list my trellis projects?\""
 echo ""
 echo "📋 Server details:"
 echo "   Name:   $SERVER_NAME"

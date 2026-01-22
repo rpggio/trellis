@@ -1,6 +1,6 @@
-# threds
+# Trellis Memory
 
-Threds is a record-based memory system for complex reasoning across chats. `threds` is an MCP server that stores projects/records/sessions in SQLite and lets agents sync down the minimum context they need to keep working. Supports stdio (default) and HTTP/SSE transports.
+Trellis Memory is a record-based memory system for complex reasoning across chats. `trellis` is an MCP server that stores projects/records/sessions in SQLite and lets agents sync down the minimum context they need to keep working. Supports stdio (default) and HTTP/SSE transports.
 
 > NOTE: Pre-release software, under active development. Available soon!
 
@@ -87,13 +87,13 @@ Configuration can be provided via environment variables or a YAML file.
 
 Environment variables:
 
-- `THREDS_TRANSPORT`: transport mode (`stdio` or `http`, default `stdio`)
-- `THREDS_CONFIG_PATH`: path to YAML config file (optional)
-- `THREDS_SERVER_HOST`: server host (default `0.0.0.0`, HTTP mode only)
-- `THREDS_SERVER_PORT`: server port (default `8080`, HTTP mode only)
-- `THREDS_DB_PATH`: SQLite database path (default `threds.db`)
-- `THREDS_LOG_LEVEL`: `debug`, `info`, `warn`, `error` (default `info`)
-- `THREDS_AUTH_ENABLED`: `true` or `false` (default `true`, HTTP mode only)
+- `TRELLIS_TRANSPORT`: transport mode (`stdio` or `http`, default `stdio`)
+- `TRELLIS_CONFIG_PATH`: path to YAML config file (optional)
+- `TRELLIS_SERVER_HOST`: server host (default `0.0.0.0`, HTTP mode only)
+- `TRELLIS_SERVER_PORT`: server port (default `8080`, HTTP mode only)
+- `TRELLIS_DB_PATH`: SQLite database path (default `trellis.db`)
+- `TRELLIS_LOG_LEVEL`: `debug`, `info`, `warn`, `error` (default `info`)
+- `TRELLIS_AUTH_ENABLED`: `true` or `false` (default `true`, HTTP mode only)
 
 Sample YAML:
 
@@ -105,7 +105,7 @@ server:
   host: "0.0.0.0"
   port: 8080
 db:
-  path: "threds.db"
+  path: "trellis.db"
 log:
   level: "info"
 auth:
@@ -121,17 +121,17 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ```json
 {
   "mcpServers": {
-    "threds": {
-      "command": "/path/to/threds-mcp",
+    "trellis": {
+      "command": "/path/to/trellis",
       "env": {
-        "THREDS_DB_PATH": "/path/to/threds.db"
+        "TRELLIS_DB_PATH": "/path/to/trellis.db"
       }
     }
   }
 }
 ```
 
-Stdio is the default transport, so no `THREDS_TRANSPORT` needed.
+Stdio is the default transport, so no `TRELLIS_TRANSPORT` needed.
 
 ### HTTP Clients
 
@@ -175,10 +175,10 @@ Build a binary:
 
 ```bash
 make build
-./bin/threds-mcp  # Runs with stdio (default)
+./bin/trellis  # Runs with stdio (default)
 
 # Or specify HTTP for production:
-THREDS_TRANSPORT=http THREDS_AUTH_ENABLED=true ./bin/threds-mcp
+TRELLIS_TRANSPORT=http TRELLIS_AUTH_ENABLED=true ./bin/trellis
 ```
 
 ## Tests

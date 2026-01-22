@@ -11,7 +11,7 @@ echo "Testing stdio protocol compliance..."
 # Helper function to run server with timeout (works on macOS and Linux)
 run_with_input() {
   local input="$1"
-  (echo "$input"; sleep 1) | THREDS_TRANSPORT=stdio THREDS_DB_PATH=:memory: ./bin/threds-mcp 2>/dev/null
+  (echo "$input"; sleep 1) | TRELLIS_TRANSPORT=stdio TRELLIS_DB_PATH=:memory: ./bin/trellis 2>/dev/null
 }
 
 # Test 1: Initialize
@@ -84,4 +84,4 @@ echo "For comprehensive compliance testing, install mcp-validation:"
 echo "  npm install -g @modelcontextprotocol/mcp-validation"
 echo ""
 echo "Then run:"
-echo "  mcp-validate --transport stdio --env THREDS_DB_PATH=:memory: --json-report report.json -- ./bin/threds-mcp"
+echo "  mcp-validate --transport stdio --env TRELLIS_DB_PATH=:memory: --json-report report.json -- ./bin/trellis"

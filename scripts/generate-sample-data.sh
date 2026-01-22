@@ -1,16 +1,16 @@
 #!/bin/bash
 set -e
 
-# Generate sample projects and data using the threds API
+# Generate sample projects and data using the trellis API
 
 usage() {
     echo "Usage: $0 <deployment_directory>"
     echo ""
-    echo "Generates sample projects and data in the deployed threds server."
+    echo "Generates sample projects and data in the deployed trellis server."
     echo "The server must be running before executing this script."
     echo ""
     echo "Example:"
-    echo "  $0 ~/my-threds-deployment"
+    echo "  $0 ~/my-trellis-deployment"
     exit 1
 }
 
@@ -28,9 +28,9 @@ fi
 
 # Load API key
 source "$DEPLOY_DIR/.env"
-API_KEY="$THREDS_API_KEY"
-BASE_URL="http://${THREDS_SERVER_HOST:-127.0.0.1}:${THREDS_SERVER_PORT:-8080}/rpc"
-AUTH_ENABLED="${THREDS_AUTH_ENABLED:-true}"
+API_KEY="$TRELLIS_API_KEY"
+BASE_URL="http://${TRELLIS_SERVER_HOST:-127.0.0.1}:${TRELLIS_SERVER_PORT:-8080}/rpc"
+AUTH_ENABLED="${TRELLIS_AUTH_ENABLED:-true}"
 
 use_auth=true
 case "$AUTH_ENABLED" in
@@ -39,7 +39,7 @@ case "$AUTH_ENABLED" in
         ;;
 esac
 
-echo "🎨 Generating sample data for threds-mcp"
+echo "🎨 Generating sample data for trellis"
 echo ""
 
 # Helper function to make API calls

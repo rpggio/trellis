@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/repository"
+	"github.com/rpggio/trellis/internal/domain/record"
+	"github.com/rpggio/trellis/internal/repository"
 )
 
 // RecordRepository implements repository.RecordRepository for SQLite

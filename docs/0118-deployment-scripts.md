@@ -4,7 +4,7 @@
 
 ## Overview
 
-A set of shell scripts for deploying, configuring, and registering standalone threds-mcp servers on macOS. These scripts provide a streamlined experience for getting a threds server running and connected to Claude Desktop.
+A set of shell scripts for deploying, configuring, and registering standalone trellis servers on macOS. These scripts provide a streamlined experience for getting a trellis server running and connected to Claude Desktop.
 
 ## Scripts Created
 
@@ -24,9 +24,9 @@ A set of shell scripts for deploying, configuring, and registering standalone th
 ```
 deployment-dir/
 ├── bin/
-│   └── threds-server          # Compiled binary
+│   └── trellis-server          # Compiled binary
 ├── data/
-│   └── threds.db              # SQLite database
+│   └── trellis.db              # SQLite database
 ├── config.yaml                # Server configuration
 ├── .env                       # Environment vars + API key
 ├── start.sh                   # Start server script
@@ -82,7 +82,7 @@ deployment-dir/
 - Generates unique server names with optional suffix
 
 **Server Naming:**
-- Pattern: `threds-<suffix>`
+- Pattern: `trellis-<suffix>`
 - Default suffix: random 8-char hex
 - Custom suffix: user-provided (e.g., `my-project`)
 
@@ -190,33 +190,33 @@ Would need:
 
 ```bash
 # Deploy multiple servers
-./scripts/deploy-standalone.sh ~/threds/project-a
-./scripts/deploy-standalone.sh ~/threds/project-b
-./scripts/deploy-standalone.sh ~/threds/project-c
+./scripts/deploy-standalone.sh ~/trellis/project-a
+./scripts/deploy-standalone.sh ~/trellis/project-b
+./scripts/deploy-standalone.sh ~/trellis/project-c
 
 # Edit config.yaml for each to use different ports
 # Then register each with unique names
-./scripts/register-claude-desktop.sh ~/threds/project-a project-a
-./scripts/register-claude-desktop.sh ~/threds/project-b project-b
-./scripts/register-claude-desktop.sh ~/threds/project-c project-c
+./scripts/register-claude-desktop.sh ~/trellis/project-a project-a
+./scripts/register-claude-desktop.sh ~/trellis/project-b project-b
+./scripts/register-claude-desktop.sh ~/trellis/project-c project-c
 ```
 
 ### CI/CD Testing
 
 ```bash
 # Deploy test instance
-./scripts/deploy-standalone.sh /tmp/threds-test
-cd /tmp/threds-test && ./start.sh
+./scripts/deploy-standalone.sh /tmp/trellis-test
+cd /tmp/trellis-test && ./start.sh
 
 # Generate data for testing
-./scripts/generate-sample-data.sh /tmp/threds-test
+./scripts/generate-sample-data.sh /tmp/trellis-test
 
 # Run tests against server
 # ...
 
 # Cleanup
-cd /tmp/threds-test && ./stop.sh
-rm -rf /tmp/threds-test
+cd /tmp/trellis-test && ./stop.sh
+rm -rf /tmp/trellis-test
 ```
 
 ## Future Enhancements
@@ -324,7 +324,7 @@ rm -rf /tmp/test-deploy
 ## Documentation Structure
 
 ```
-threds-mcp/
+trellis/
 ├── README.md                          # Updated with quick start section
 ├── scripts/
 │   ├── README.md                      # Comprehensive scripts documentation
@@ -345,7 +345,7 @@ deployment-dir/
 
 ## Conclusion
 
-These scripts provide a complete, user-friendly deployment experience for threds-mcp on macOS. They prioritize:
+These scripts provide a complete, user-friendly deployment experience for trellis on macOS. They prioritize:
 
 - **Simplicity** - One command to get started
 - **Safety** - Backups, validation, clear error messages
@@ -353,4 +353,4 @@ These scripts provide a complete, user-friendly deployment experience for threds
 - **Documentation** - Every script includes usage instructions
 - **Realism** - Sample data reflects actual use cases
 
-The result is a smooth path from "I want to try threds" to "I'm having a design conversation with Claude using my reasoning memory" in under 5 minutes.
+The result is a smooth path from "I want to try trellis" to "I'm having a design conversation with Claude using my reasoning memory" in under 5 minutes.

@@ -6,7 +6,7 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const serverInstructions = `threds-mcp stores durable reasoning as Projects → Records → Sessions.
+const serverInstructions = `Trellis Memory stores durable reasoning as Projects → Records → Sessions.
 
 Core concepts (keep this mental model small):
 - Project: a container with a monotonic tick (logical clock). “Stale” means tick gap, not wall time.
@@ -38,12 +38,12 @@ Transport notes:
 - Stdio: pass session id via _meta.session_id when supported; otherwise some tools accept session_id arguments.
 
 Docs (progressive disclosure):
-- threds://docs/index (what to read when)
-- threds://docs/concepts (glossary + invariants)
-- threds://docs/workflows/cold-start
-- threds://docs/workflows/activation-and-writing
-- threds://docs/workflows/conflicts
-- threds://docs/record-writing
+- trellis://docs/index (what to read when)
+- trellis://docs/concepts (glossary + invariants)
+- trellis://docs/workflows/cold-start
+- trellis://docs/workflows/activation-and-writing
+- trellis://docs/workflows/conflicts
+- trellis://docs/record-writing
 `
 
 type docResource struct {
@@ -56,11 +56,11 @@ type docResource struct {
 
 var docResources = []docResource{
 	{
-		URI:         "threds://docs/index",
+		URI:         "trellis://docs/index",
 		Name:        "docs_index",
-		Title:       "threds-mcp docs index",
+		Title:       "Trellis Memory docs index",
 		Description: "Entry point for agent-facing docs: what exists, what to read, and known limitations.",
-		Content: `# threds-mcp: Agent Docs Index
+		Content: `# Trellis Memory: Agent Docs Index
 
 This server is designed for **progressive disclosure**: keep your baseline context small and load deeper docs only when needed.
 
@@ -75,11 +75,11 @@ This server is designed for **progressive disclosure**: keep your baseline conte
 
 ## Docs (read on demand)
 
-- ` + "`threds://docs/concepts`" + ` — glossary + invariants (activation boundary, tick-gap staleness, concurrency).
-- ` + "`threds://docs/record-writing`" + ` — how to write records that remain self-explaining and cheap to load.
-- ` + "`threds://docs/workflows/cold-start`" + ` — “new chat / resume work” playbook.
-- ` + "`threds://docs/workflows/activation-and-writing`" + ` — the normal reasoning + mutation loop.
-- ` + "`threds://docs/workflows/conflicts`" + ` — conflict handling + safe use of ` + "`force`" + `.
+- ` + "`trellis://docs/concepts`" + ` — glossary + invariants (activation boundary, tick-gap staleness, concurrency).
+- ` + "`trellis://docs/record-writing`" + ` — how to write records that remain self-explaining and cheap to load.
+- ` + "`trellis://docs/workflows/cold-start`" + ` — “new chat / resume work” playbook.
+- ` + "`trellis://docs/workflows/activation-and-writing`" + ` — the normal reasoning + mutation loop.
+- ` + "`trellis://docs/workflows/conflicts`" + ` — conflict handling + safe use of ` + "`force`" + `.
 
 ## Capabilities & intentional limitations
 
@@ -92,7 +92,7 @@ This server is designed for **progressive disclosure**: keep your baseline conte
 `,
 	},
 	{
-		URI:         "threds://docs/concepts",
+		URI:         "trellis://docs/concepts",
 		Name:        "docs_concepts",
 		Title:       "Concepts and invariants",
 		Description: "Mental model + invariant rules: tick-gap staleness, activation boundary, record tree, and sessions.",
@@ -147,7 +147,7 @@ Default behavior: save on request (synthesize T* into a durable R*; don’t log 
 	`,
 	},
 	{
-		URI:         "threds://docs/workflows/cold-start",
+		URI:         "trellis://docs/workflows/cold-start",
 		Name:        "docs_workflow_cold_start",
 		Title:       "Workflow: cold start / resume",
 		Description: "Playbook for new chats or resuming work without pulling too much context.",
@@ -185,7 +185,7 @@ If activation returns warnings (other sessions), prefer non-destructive changes 
 `,
 	},
 	{
-		URI:         "threds://docs/workflows/activation-and-writing",
+		URI:         "trellis://docs/workflows/activation-and-writing",
 		Name:        "docs_workflow_activation_and_writing",
 		Title:       "Workflow: activation and writing",
 		Description: "Playbook for the normal loop: activate → write → sync/save/close.",
@@ -219,7 +219,7 @@ Save on request: keep exploratory thinking in chat; persist only when the user a
 `,
 		},
 	{
-		URI:         "threds://docs/workflows/conflicts",
+		URI:         "trellis://docs/workflows/conflicts",
 		Name:        "docs_workflow_conflicts",
 		Title:       "Workflow: conflicts and force",
 		Description: "How to handle update conflicts and use force safely.",
@@ -249,7 +249,7 @@ Avoid “blind force”; it can discard someone else’s work.
 `,
 	},
 	{
-		URI:         "threds://docs/record-writing",
+		URI:         "trellis://docs/record-writing",
 		Name:        "docs_record_writing",
 		Title:       "Record writing guide",
 		Description: "How to write records that remain self-explaining and cheap to load in future activations.",

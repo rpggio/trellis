@@ -12,17 +12,17 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 	"sync"
+	"time"
 
-	"github.com/ganot/threds-mcp/internal/config"
-	"github.com/ganot/threds-mcp/internal/domain/activity"
-	"github.com/ganot/threds-mcp/internal/domain/project"
-	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/domain/session"
-	"github.com/ganot/threds-mcp/internal/mcp"
-	"github.com/ganot/threds-mcp/internal/sqlite"
-	"github.com/ganot/threds-mcp/migrations"
+	"github.com/rpggio/trellis/internal/config"
+	"github.com/rpggio/trellis/internal/domain/activity"
+	"github.com/rpggio/trellis/internal/domain/project"
+	"github.com/rpggio/trellis/internal/domain/record"
+	"github.com/rpggio/trellis/internal/domain/session"
+	"github.com/rpggio/trellis/internal/mcp"
+	"github.com/rpggio/trellis/internal/sqlite"
+	"github.com/rpggio/trellis/migrations"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -38,7 +38,7 @@ func main() {
 	if cfg.Transport.Mode == "stdio" {
 		logWriter = os.Stderr
 	}
-	if logPath := os.Getenv("THREDS_LOG_PATH"); logPath != "" {
+	if logPath := os.Getenv("TRELLIS_LOG_PATH"); logPath != "" {
 		fileWriter, file, err := newLogFileWriter(logPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "log file error: %v\n", err)

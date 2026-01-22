@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/ganot/threds-mcp/migrations"
+	"github.com/rpggio/trellis/migrations"
 	_ "modernc.org/sqlite"
 )
 

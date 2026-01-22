@@ -5,7 +5,7 @@ set -e
 
 cat << "BANNER"
 ╔════════════════════════════════════════╗
-║   Threds MCP Quick Start for Mac      ║
+║   Trellis Memory Quick Start for Mac      ║
 ╚════════════════════════════════════════╝
 BANNER
 
@@ -22,7 +22,7 @@ trap cleanup EXIT INT TERM
 
 echo ""
 echo "This script will:"
-echo "  1. Deploy a standalone threds-mcp server"
+echo "  1. Deploy a standalone trellis server"
 echo "  2. Start the server"
 echo "  3. Generate sample data"
 echo "  4. Print Claude Desktop registration details"
@@ -36,9 +36,9 @@ if command -v openssl &> /dev/null; then
 else
     RAND_SUFFIX="${RANDOM}${RANDOM}"
 fi
-DEFAULT_DEPLOY_DIR="/tmp/threds-mcp-$RAND_SUFFIX"
+DEFAULT_DEPLOY_DIR="/tmp/trellis-$RAND_SUFFIX"
 while [ -e "$DEFAULT_DEPLOY_DIR" ]; do
-    DEFAULT_DEPLOY_DIR="/tmp/threds-mcp-${RANDOM}${RANDOM}"
+    DEFAULT_DEPLOY_DIR="/tmp/trellis-${RANDOM}${RANDOM}"
 done
 
 read -p "Enter deployment directory (default $DEFAULT_DEPLOY_DIR): " DEPLOY_DIR
@@ -89,7 +89,7 @@ echo "════════════════════════�
 
 if [ "$SERVER_PORT" != "8080" ]; then
     sed -i '' "s/^  port: .*/  port: $SERVER_PORT/" "$DEPLOY_DIR/config.yaml"
-    sed -i '' "s/^THREDS_SERVER_PORT=.*/THREDS_SERVER_PORT=$SERVER_PORT/" "$DEPLOY_DIR/.env"
+    sed -i '' "s/^TRELLIS_SERVER_PORT=.*/TRELLIS_SERVER_PORT=$SERVER_PORT/" "$DEPLOY_DIR/.env"
 fi
 
 echo ""
@@ -133,7 +133,7 @@ echo "════════════════════════�
 echo " Step 4: Preparing Claude Desktop registration"
 echo "════════════════════════════════════════"
 "$SCRIPT_DIR/register-claude-desktop.sh" "$DEPLOY_DIR" "$NAME_SUFFIX"
-SERVER_NAME="threds-$NAME_SUFFIX"
+SERVER_NAME="trellis-$NAME_SUFFIX"
 
 echo ""
 echo "════════════════════════════════════════"
@@ -150,7 +150,7 @@ echo ""
 echo "1. Restart Claude Desktop"
 echo ""
 echo "2. In Claude, try asking:"
-echo "   • \"Can you list my threds projects?\""
+echo "   • \"Can you list my trellis projects?\""
 echo "   • \"Show me the records in the Mobile App Redesign project\""
 echo "   • \"What questions are open in my design projects?\""
 echo ""
@@ -159,7 +159,7 @@ echo ""
 echo "   Stop server:   cd $DEPLOY_DIR && ./stop.sh"
 echo "   Start server:  cd $DEPLOY_DIR && ./start.sh"
 echo "   View logs:     cd $DEPLOY_DIR && tail -f nohup.out"
-echo "   API key:       cat $DEPLOY_DIR/.env | grep THREDS_API_KEY (if auth enabled)"
+echo "   API key:       cat $DEPLOY_DIR/.env | grep TRELLIS_API_KEY (if auth enabled)"
 echo ""
 echo "📚 Documentation:"
 echo "   • Server docs:  cat $DEPLOY_DIR/README.md"

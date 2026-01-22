@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document describes the stdio transport implementation for threds-mcp, which enables local development and integration with MCP clients like Claude Desktop.
+This document describes the stdio transport implementation for trellis, which enables local development and integration with MCP clients like Claude Desktop.
 
 ## Architecture
 
 ### Transport Modes
 
-1. **Stdio Transport** (`THREDS_TRANSPORT=stdio`)
+1. **Stdio Transport** (`TRELLIS_TRANSPORT=stdio`)
    - Uses stdin/stdout for JSON-RPC communication
    - Newline-delimited JSON messages
    - Blocking operation (server.Run() blocks until stdin closes)
@@ -16,7 +16,7 @@ This document describes the stdio transport implementation for threds-mcp, which
    - Auth disabled (single-tenant, local dev only)
    - Session IDs via `_meta.session_id` in request params
 
-2. **HTTP Transport** (`THREDS_TRANSPORT=http`)
+2. **HTTP Transport** (`TRELLIS_TRANSPORT=http`)
    - Uses Server-Sent Events (SSE) over HTTP
    - Optional stateful sessions with timeout
    - Supports auth via bearer tokens
@@ -38,7 +38,7 @@ This document describes the stdio transport implementation for threds-mcp, which
 ### Transport Selection
 
 Transport is selected based on:
-1. Environment variable `THREDS_TRANSPORT`
+1. Environment variable `TRELLIS_TRANSPORT`
 2. YAML config `transport.mode`
 3. Default: `stdio`
 
@@ -96,7 +96,7 @@ make dev-http
 ### Production (HTTP)
 
 ```bash
-THREDS_TRANSPORT=http THREDS_AUTH_ENABLED=true ./threds-mcp
+TRELLIS_TRANSPORT=http TRELLIS_AUTH_ENABLED=true ./trellis
 ```
 
 ### Claude Desktop Integration
@@ -106,18 +106,18 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 ```json
 {
   "mcpServers": {
-    "threds": {
-      "command": "/usr/local/bin/threds-mcp",
+    "trellis": {
+      "command": "/usr/local/bin/trellis",
       "env": {
-        "THREDS_DB_PATH": "/Users/you/.threds/threds.db",
-        "THREDS_LOG_LEVEL": "info"
+        "TRELLIS_DB_PATH": "/Users/you/.trellis/trellis.db",
+        "TRELLIS_LOG_LEVEL": "info"
       }
     }
   }
 }
 ```
 
-No need to specify `THREDS_TRANSPORT` since stdio is the default.
+No need to specify `TRELLIS_TRANSPORT` since stdio is the default.
 
 ## Security Considerations
 
@@ -157,10 +157,10 @@ npm install -g @modelcontextprotocol/mcp-validation
 # Run full validation with JSON report
 mcp-validate \
   --transport stdio \
-  --env THREDS_DB_PATH=:memory: \
+  --env TRELLIS_DB_PATH=:memory: \
   --json-report compliance-report.json \
   --debug \
-  -- ./bin/threds-mcp
+  -- ./bin/trellis
 ```
 
 Features:
@@ -179,7 +179,7 @@ Use MCP Inspector for manual testing and debugging:
 
 ```bash
 # Launch interactive inspector
-npx @modelcontextprotocol/inspector ./bin/threds-mcp
+npx @modelcontextprotocol/inspector ./bin/trellis
 
 # Then open http://localhost:6274 in your browser
 ```
@@ -200,10 +200,10 @@ npm install -g @wong2/mcp-cli
 cat > test-config.json <<EOF
 {
   "mcpServers": {
-    "threds": {
-      "command": "./bin/threds-mcp",
+    "trellis": {
+      "command": "./bin/trellis",
       "env": {
-        "THREDS_DB_PATH": ":memory:"
+        "TRELLIS_DB_PATH": ":memory:"
       }
     }
   }
@@ -211,7 +211,7 @@ cat > test-config.json <<EOF
 EOF
 
 # Run commands non-interactively
-npx @wong2/mcp-cli --config test-config.json call-tool threds:create_record --args '{...}'
+npx @wong2/mcp-cli --config test-config.json call-tool trellis:create_record --args '{...}'
 ```
 
 **Reference**: [@wong2/mcp-cli](https://github.com/wong2/mcp-cli)
@@ -233,13 +233,13 @@ make test-functional  # HTTP transport
 
 **Cause**: Logs are being written to stdout instead of stderr.
 
-**Solution**: Ensure `THREDS_TRANSPORT=stdio` is set, which triggers stderr logging.
+**Solution**: Ensure `TRELLIS_TRANSPORT=stdio` is set, which triggers stderr logging.
 
 ## Migration Path
 
 New default is stdio for simplicity. For HTTP deployments:
 
-1. Set `THREDS_TRANSPORT=http` in environment or config
+1. Set `TRELLIS_TRANSPORT=http` in environment or config
 2. Configure HTTP-specific settings (host, port, auth)
 3. Deploy with proper auth enabled
 

@@ -24,7 +24,7 @@ server
 
 # Test scripts and executables should be in test/ or bin/, not root
 /*.sh
-/threds-mcp
+/trellis
 
 # local go mod cache
 .pkg

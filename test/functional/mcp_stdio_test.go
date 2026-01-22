@@ -29,9 +29,9 @@ func newStdioSessionWithEnv(t *testing.T, extraEnv []string) *stdioSession {
 	t.Helper()
 
 	// Find the binary
-	binaryPath := "./bin/threds-mcp"
+	binaryPath := "./bin/trellis"
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		binaryPath = "../../bin/threds-mcp"
+		binaryPath = "../../bin/trellis"
 		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 			t.Skip("Server binary not found. Run 'make build' first.")
 		}
@@ -41,9 +41,9 @@ func newStdioSessionWithEnv(t *testing.T, extraEnv []string) *stdioSession {
 
 	cmd := exec.CommandContext(ctx, binaryPath)
 	cmd.Env = append(os.Environ(),
-		"THREDS_TRANSPORT=stdio",
-		"THREDS_DB_PATH=:memory:",
-		"THREDS_AUTH_ENABLED=false",
+		"TRELLIS_TRANSPORT=stdio",
+		"TRELLIS_DB_PATH=:memory:",
+		"TRELLIS_AUTH_ENABLED=false",
 	)
 	if len(extraEnv) > 0 {
 		cmd.Env = append(cmd.Env, extraEnv...)
@@ -213,7 +213,7 @@ func TestStdioFunctional_MCPProtocolCompliance(t *testing.T) {
 	initResult := s.session.InitializeResult()
 	require.NotNil(t, initResult)
 	require.NotNil(t, initResult.ServerInfo)
-	require.Equal(t, "threds-mcp", initResult.ServerInfo.Name)
+	require.Equal(t, "trellis", initResult.ServerInfo.Name)
 	require.Equal(t, "0.1.0", initResult.ServerInfo.Version)
 
 	// Test tools/list
@@ -237,10 +237,10 @@ func TestStdioFunctional_MCPProtocolCompliance(t *testing.T) {
 }
 
 func TestStdioFunctional_LogFile(t *testing.T) {
-	logPath := filepath.Join(t.TempDir(), "threds.log")
+	logPath := filepath.Join(t.TempDir(), "trellis.log")
 	s := newStdioSessionWithEnv(t, []string{
-		"THREDS_LOG_PATH=" + logPath,
-		"THREDS_LOG_LEVEL=debug",
+		"TRELLIS_LOG_PATH=" + logPath,
+		"TRELLIS_LOG_LEVEL=debug",
 	})
 
 	_ = s.callTool(t, "list_projects", nil)
@@ -316,12 +316,12 @@ func TestStdioFunctional_DocumentationResources(t *testing.T) {
 	}
 
 	expected := []string{
-		"threds://docs/index",
-		"threds://docs/concepts",
-		"threds://docs/workflows/cold-start",
-		"threds://docs/workflows/activation-and-writing",
-		"threds://docs/workflows/conflicts",
-		"threds://docs/record-writing",
+		"trellis://docs/index",
+		"trellis://docs/concepts",
+		"trellis://docs/workflows/cold-start",
+		"trellis://docs/workflows/activation-and-writing",
+		"trellis://docs/workflows/conflicts",
+		"trellis://docs/record-writing",
 	}
 	for _, uri := range expected {
 		r, ok := uris[uri]
@@ -331,10 +331,10 @@ func TestStdioFunctional_DocumentationResources(t *testing.T) {
 		require.Greater(t, r.Size, int64(0))
 	}
 
-	read, err := s.session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: "threds://docs/index"})
+	read, err := s.session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: "trellis://docs/index"})
 	require.NoError(t, err)
 	require.NotEmpty(t, read.Contents)
-	require.Equal(t, "threds://docs/index", read.Contents[0].URI)
+	require.Equal(t, "trellis://docs/index", read.Contents[0].URI)
 	require.Equal(t, "text/markdown", read.Contents[0].MIMEType)
 	require.Contains(t, read.Contents[0].Text, "Agent Docs Index")
 }

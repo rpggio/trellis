@@ -1,4 +1,4 @@
-# Threds: System Model Summary
+# Trellis Memory: System Model Summary
 
 *A compact reference for the core model, principles, and workflows*
 
@@ -114,7 +114,7 @@ Threads are an optional organizational pattern, not a core concept.
 - Project-level artifacts don't require threads
 - Users who don't want threads simply don't create them
 
-See `threds-threads.SKILL.md` for the threads pattern.
+See `trellis-threads.SKILL.md` for the threads pattern.
 
 ### Override by Default
 

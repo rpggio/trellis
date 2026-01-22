@@ -42,10 +42,10 @@ type AuthConfig struct {
 // Load reads configuration from an optional YAML file and environment variables.
 func Load() (Config, error) {
 	// Determine default DB path: same directory as binary
-	defaultDBPath := "threds.db"
+	defaultDBPath := "trellis.db"
 	if exePath, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exePath)
-		defaultDBPath = filepath.Join(exeDir, "threds.db")
+		defaultDBPath = filepath.Join(exeDir, "trellis.db")
 	}
 
 	cfg := Config{
@@ -67,35 +67,35 @@ func Load() (Config, error) {
 		},
 	}
 
-	if path := os.Getenv("THREDS_CONFIG_PATH"); path != "" {
+	if path := os.Getenv("TRELLIS_CONFIG_PATH"); path != "" {
 		if err := loadFromFile(path, &cfg); err != nil {
 			return Config{}, err
 		}
 	}
 
-	if mode := os.Getenv("THREDS_TRANSPORT"); mode != "" {
+	if mode := os.Getenv("TRELLIS_TRANSPORT"); mode != "" {
 		cfg.Transport.Mode = mode
 	}
-	if host := os.Getenv("THREDS_SERVER_HOST"); host != "" {
+	if host := os.Getenv("TRELLIS_SERVER_HOST"); host != "" {
 		cfg.Server.Host = host
 	}
-	if portStr := os.Getenv("THREDS_SERVER_PORT"); portStr != "" {
+	if portStr := os.Getenv("TRELLIS_SERVER_PORT"); portStr != "" {
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			return Config{}, fmt.Errorf("invalid THREDS_SERVER_PORT: %w", err)
+			return Config{}, fmt.Errorf("invalid TRELLIS_SERVER_PORT: %w", err)
 		}
 		cfg.Server.Port = port
 	}
-	if dbPath := os.Getenv("THREDS_DB_PATH"); dbPath != "" {
+	if dbPath := os.Getenv("TRELLIS_DB_PATH"); dbPath != "" {
 		cfg.DB.Path = dbPath
 	}
-	if level := os.Getenv("THREDS_LOG_LEVEL"); level != "" {
+	if level := os.Getenv("TRELLIS_LOG_LEVEL"); level != "" {
 		cfg.Log.Level = level
 	}
-	if enabled := os.Getenv("THREDS_AUTH_ENABLED"); enabled != "" {
+	if enabled := os.Getenv("TRELLIS_AUTH_ENABLED"); enabled != "" {
 		value, err := strconv.ParseBool(enabled)
 		if err != nil {
-			return Config{}, fmt.Errorf("invalid THREDS_AUTH_ENABLED: %w", err)
+			return Config{}, fmt.Errorf("invalid TRELLIS_AUTH_ENABLED: %w", err)
 		}
 		cfg.Auth.Enabled = value
 	}

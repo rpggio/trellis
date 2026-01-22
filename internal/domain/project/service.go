@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ganot/threds-mcp/internal/repository"
+	"github.com/rpggio/trellis/internal/repository"
 	"github.com/google/uuid"
 )
 

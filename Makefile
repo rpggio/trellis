@@ -1,4 +1,4 @@
-APP_NAME=threds-mcp
+APP_NAME=trellis
 DEFAULT_PORT=8080
 
 .PHONY: help test-unit test-integration test-functional test test-stdio build run dev clean lint-stdout validate-mcp ci
@@ -27,8 +27,8 @@ dev:
 	@echo "Transport: stdio (default)"
 	@echo "Connect via MCP client using stdio"
 	@echo ""
-	THREDS_AUTH_ENABLED=false \
-	THREDS_LOG_LEVEL=debug \
+	TRELLIS_AUTH_ENABLED=false \
+	TRELLIS_LOG_LEVEL=debug \
 	go run ./cmd/server
 
 ## dev-http: Run development server with HTTP transport (auth disabled)
@@ -37,11 +37,11 @@ dev-http:
 	@echo "Auth: DISABLED"
 	@echo "URL: http://localhost:$(DEFAULT_PORT)"
 	@echo ""
-	THREDS_TRANSPORT=http \
-	THREDS_AUTH_ENABLED=false \
-	THREDS_SERVER_HOST=127.0.0.1 \
-	THREDS_SERVER_PORT=$(DEFAULT_PORT) \
-	THREDS_LOG_LEVEL=debug \
+	TRELLIS_TRANSPORT=http \
+	TRELLIS_AUTH_ENABLED=false \
+	TRELLIS_SERVER_HOST=127.0.0.1 \
+	TRELLIS_SERVER_PORT=$(DEFAULT_PORT) \
+	TRELLIS_LOG_LEVEL=debug \
 	go run ./cmd/server
 
 ## test-unit: Run unit tests
@@ -84,7 +84,7 @@ lint-stdout:
 ## validate-mcp: Run MCP protocol compliance checks
 validate-mcp: build lint-stdout
 	@echo "Running protocol compliance tests..."
-	THREDS_DB_PATH=:memory: go test ./test/integration -run TestStdioProtocol -v
+	TRELLIS_DB_PATH=:memory: go test ./test/integration -run TestStdioProtocol -v
 
 ## ci: Full CI pipeline
 ci: build test validate-mcp

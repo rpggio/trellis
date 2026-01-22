@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ganot/threds-mcp/internal/domain/activity"
-	"github.com/ganot/threds-mcp/internal/domain/project"
-	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/domain/session"
-	"github.com/ganot/threds-mcp/internal/sqlite"
+	"github.com/rpggio/trellis/internal/domain/activity"
+	"github.com/rpggio/trellis/internal/domain/project"
+	"github.com/rpggio/trellis/internal/domain/record"
+	"github.com/rpggio/trellis/internal/domain/session"
+	"github.com/rpggio/trellis/internal/sqlite"
 	"github.com/stretchr/testify/require"
 )
 

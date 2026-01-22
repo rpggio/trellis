@@ -1,6 +1,6 @@
 ---
-name: threds-question-conclusion-scheme
-description: A scheme for modeling conversations using threds MCP based on questions and conclusions.
+name: trellis-question-conclusion-scheme
+description: A scheme for modeling conversations using Trellis Memory based on questions and conclusions.
 ---
 
 # Question/Conclusion Reasoning Scheme

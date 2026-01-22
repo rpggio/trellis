@@ -1,4 +1,4 @@
-module github.com/ganot/threds-mcp
+module github.com/rpggio/trellis
 
 go 1.25.5
 

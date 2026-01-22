@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ganot/threds-mcp/internal/domain/activity"
-	"github.com/ganot/threds-mcp/internal/repository/mocks"
+	"github.com/rpggio/trellis/internal/domain/activity"
+	"github.com/rpggio/trellis/internal/repository/mocks"
 	"github.com/stretchr/testify/require"
 )
 

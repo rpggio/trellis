@@ -3,8 +3,8 @@ package session
 import (
 	"context"
 
-	"github.com/ganot/threds-mcp/internal/domain/project"
-	"github.com/ganot/threds-mcp/internal/domain/record"
+	"github.com/rpggio/trellis/internal/domain/project"
+	"github.com/rpggio/trellis/internal/domain/record"
 )
 
 // RecordRepository provides record retrieval for context loading.

@@ -1,4 +1,4 @@
-Implementation Plan: threds-mcp Server
+Implementation Plan: trellis Server
 
 Overview
 Building a Model Context Protocol (MCP) server for managing design reasoning across chat sessions. The system tracks records (questions, conclusions, notes) in parent-child hierarchies with session-based conflict detection using logical clocks (ticks).

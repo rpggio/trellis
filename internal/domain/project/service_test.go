@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ganot/threds-mcp/internal/domain/project"
-	"github.com/ganot/threds-mcp/internal/repository"
-	"github.com/ganot/threds-mcp/internal/repository/mocks"
+	"github.com/rpggio/trellis/internal/domain/project"
+	"github.com/rpggio/trellis/internal/repository"
+	"github.com/rpggio/trellis/internal/repository/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )

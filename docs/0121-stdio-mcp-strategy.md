@@ -128,10 +128,10 @@ func TestStdioProtocolCompliance(t *testing.T) {
 
     // Spawn server as subprocess
     transport, err := sdkmcp.NewCommandTransport(ctx, sdkmcp.CommandTransportConfig{
-        Command: "./bin/threds-mcp",
+        Command: "./bin/trellis",
         Env: []string{
-            "THREDS_TRANSPORT=stdio",
-            "THREDS_DB_PATH=:memory:",
+            "TRELLIS_TRANSPORT=stdio",
+            "TRELLIS_DB_PATH=:memory:",
         },
     })
     require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestStdioProtocolCompliance(t *testing.T) {
 
     // Verify initialize response
     require.NotNil(t, session.ServerInfo())
-    require.Equal(t, "threds-mcp", session.ServerInfo().Name)
+    require.Equal(t, "trellis", session.ServerInfo().Name)
 
     // Test tools/list
     tools, err := session.ListTools(ctx, nil)
@@ -181,7 +181,7 @@ func TestStdioProtocolCompliance(t *testing.T) {
 ## validate-mcp: Run MCP protocol compliance checks
 validate-mcp: build lint-stdout
 	@echo "Running protocol compliance tests..."
-	THREDS_DB_PATH=:memory: go test ./test/integration -run TestStdioProtocol -v
+	TRELLIS_DB_PATH=:memory: go test ./test/integration -run TestStdioProtocol -v
 
 ## ci: Full CI pipeline
 ci: build test validate-mcp
@@ -320,9 +320,9 @@ When stdio doesn't work:
 2. **Check stdout pollution:** `make lint-stdout`
 3. **Test manually:**
    ```bash
-   echo '{"jsonrpc":"2.0","method":"initialize","params":{...},"id":1}' | ./bin/threds-mcp 2>/dev/null
+   echo '{"jsonrpc":"2.0","method":"initialize","params":{...},"id":1}' | ./bin/trellis 2>/dev/null
    ```
-4. **Check for startup errors:** `./bin/threds-mcp 2>&1 | head -5`
+4. **Check for startup errors:** `./bin/trellis 2>&1 | head -5`
 5. **Verify JSON output:** First line of stdout must be `{"jsonrpc":"2.0",...}`
 
 ## Common Mistakes
@@ -408,17 +408,17 @@ This error is **not from your server**. It's from the MCP Inspector's internal b
 
 ```bash
 # 1. Check server starts at all
-./bin/threds-mcp 2>&1 | head -10
+./bin/trellis 2>&1 | head -10
 
 # 2. Check stdout is clean JSON
 echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}' | \
-  THREDS_DB_PATH=:memory: ./bin/threds-mcp 2>/dev/null | head -1
+  TRELLIS_DB_PATH=:memory: ./bin/trellis 2>/dev/null | head -1
 
 # 3. Validate the response
 # Should see: {"jsonrpc":"2.0","result":{...},"id":1}
 
 # 4. Check for stderr output (should have logs here)
-echo '...' | THREDS_DB_PATH=:memory: ./bin/threds-mcp 2>&1 1>/dev/null | head -5
+echo '...' | TRELLIS_DB_PATH=:memory: ./bin/trellis 2>&1 1>/dev/null | head -5
 ```
 
 ---

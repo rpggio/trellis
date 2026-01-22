@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ganot/threds-mcp/internal/domain/activity"
-	"github.com/ganot/threds-mcp/internal/domain/project"
-	"github.com/ganot/threds-mcp/internal/domain/record"
-	"github.com/ganot/threds-mcp/internal/domain/session"
+	"github.com/rpggio/trellis/internal/domain/activity"
+	"github.com/rpggio/trellis/internal/domain/project"
+	"github.com/rpggio/trellis/internal/domain/record"
+	"github.com/rpggio/trellis/internal/domain/session"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -268,7 +268,7 @@ func registerActivationTools(server *sdkmcp.Server, svc Services) {
 func registerMutationTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "create_record",
-		Description: "Create a record (optionally under parent_id). Use when the user asks to persist; write it to stand alone; see `threds://docs/record-writing`. If a session is active, the record is auto-activated.",
+		Description: "Create a record (optionally under parent_id). Use when the user asks to persist; write it to stand alone; see `trellis://docs/record-writing`. If a session is active, the record is auto-activated.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CreateRecordParams) (*sdkmcp.CallToolResult, *CreateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -301,7 +301,7 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "update_record",
-		Description: "Update an activated record when the user asks to persist changes. Keep it self-explaining; see `threds://docs/record-writing`. May return a conflict unless force=true; requires a session id context.",
+		Description: "Update an activated record when the user asks to persist changes. Keep it self-explaining; see `trellis://docs/record-writing`. May return a conflict unless force=true; requires a session id context.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input UpdateRecordParams) (*sdkmcp.CallToolResult, *UpdateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)

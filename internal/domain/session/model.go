@@ -3,7 +3,7 @@ package session
 import (
 	"time"
 
-	"github.com/ganot/threds-mcp/internal/domain/record"
+	"github.com/rpggio/trellis/internal/domain/record"
 )
 
 // SessionStatus represents the lifecycle status of a session
