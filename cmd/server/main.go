@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	"sync"
 
 	"github.com/ganot/threds-mcp/internal/config"
 	"github.com/ganot/threds-mcp/internal/domain/activity"
@@ -31,10 +33,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Use stderr for logs in stdio mode to keep stdout clean for JSON-RPC
-	logWriter := os.Stdout
+	// Use stderr for logs in stdio mode to keep stdout clean for JSON-RPC.
+	logWriter := io.Writer(os.Stdout)
 	if cfg.Transport.Mode == "stdio" {
 		logWriter = os.Stderr
+	}
+	if logPath := os.Getenv("THREDS_LOG_PATH"); logPath != "" {
+		fileWriter, file, err := newLogFileWriter(logPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "log file error: %v\n", err)
+		} else {
+			defer file.Close()
+			logWriter = fileWriter
+		}
 	}
 	logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{
 		Level: parseLogLevel(cfg.Log.Level),
@@ -199,6 +210,90 @@ func parseLogLevel(level string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+const (
+	maxLogSizeBytes  = 6 * 1024 * 1024
+	keepLogSizeBytes = 5 * 1024 * 1024
+)
+
+type logFileWriter struct {
+	path string
+	file *os.File
+	mu   sync.Mutex
+}
+
+func newLogFileWriter(path string) (*logFileWriter, *os.File, error) {
+	if err := ensureLogDir(path); err != nil {
+		return nil, nil, err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o644)
+	if err != nil {
+		return nil, nil, err
+	}
+	writer := &logFileWriter{path: path, file: file}
+	if err := writer.truncateIfNeeded(); err != nil {
+		return nil, nil, err
+	}
+	return writer, file, nil
+}
+
+func ensureLogDir(path string) error {
+	dir := filepath.Dir(path)
+	if dir == "." {
+		return nil
+	}
+	return os.MkdirAll(dir, 0o755)
+}
+
+func (w *logFileWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	n, err := w.file.Write(p)
+	if err != nil {
+		return n, err
+	}
+	if err := w.truncateIfNeeded(); err != nil {
+		return n, err
+	}
+	return n, nil
+}
+
+func (w *logFileWriter) truncateIfNeeded() error {
+	info, err := w.file.Stat()
+	if err != nil {
+		return err
+	}
+	size := info.Size()
+	if size <= maxLogSizeBytes {
+		return nil
+	}
+	if size <= keepLogSizeBytes {
+		return nil
+	}
+
+	buf := make([]byte, keepLogSizeBytes)
+	if _, err := w.file.Seek(size-keepLogSizeBytes, io.SeekStart); err != nil {
+		return err
+	}
+	n, err := w.file.Read(buf)
+	if err != nil && err != io.EOF {
+		return err
+	}
+	buf = buf[:n]
+
+	if err := w.file.Truncate(0); err != nil {
+		return err
+	}
+	if _, err := w.file.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	if _, err := w.file.Write(buf); err != nil {
+		return err
+	}
+	_, err = w.file.Seek(0, io.SeekEnd)
+	return err
 }
 
 type apiKeyResolver struct {

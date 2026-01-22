@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +21,11 @@ type stdioSession struct {
 }
 
 func newStdioSession(t *testing.T) *stdioSession {
+	t.Helper()
+	return newStdioSessionWithEnv(t, nil)
+}
+
+func newStdioSessionWithEnv(t *testing.T, extraEnv []string) *stdioSession {
 	t.Helper()
 
 	// Find the binary
@@ -38,6 +45,9 @@ func newStdioSession(t *testing.T) *stdioSession {
 		"THREDS_DB_PATH=:memory:",
 		"THREDS_AUTH_ENABLED=false",
 	)
+	if len(extraEnv) > 0 {
+		cmd.Env = append(cmd.Env, extraEnv...)
+	}
 
 	transport := &sdkmcp.CommandTransport{Command: cmd}
 
@@ -205,6 +215,27 @@ func TestStdioFunctional_MCPProtocolCompliance(t *testing.T) {
 	require.Contains(t, toolMap, "activate")
 	require.Contains(t, toolMap, "create_record")
 	require.NotEmpty(t, toolMap["create_project"].Description)
+}
+
+func TestStdioFunctional_LogFile(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "threds.log")
+	s := newStdioSessionWithEnv(t, []string{
+		"THREDS_LOG_PATH=" + logPath,
+		"THREDS_LOG_LEVEL=debug",
+	})
+
+	_ = s.callTool(t, "list_projects", nil)
+
+	require.Eventually(t, func() bool {
+		data, err := os.ReadFile(logPath)
+		if err != nil {
+			return false
+		}
+		text := string(data)
+		return strings.Contains(text, `msg="mcp traffic"`) &&
+			strings.Contains(text, "stage=request") &&
+			strings.Contains(text, "stage=response")
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func TestStdioFunctional_HistoryAndActivity(t *testing.T) {
