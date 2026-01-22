@@ -22,6 +22,7 @@ Information flow principles:
 - Chat is ephemeral; records are durable.
 - Save on request: don’t create/update/transition or save_session unless the user asks to persist/checkpoint.
 - Retroactive modeling: when asked to save, synthesize the conversation into a coherent record (mention key rejected alternatives instead of logging every position change).
+- When saving reasoning, model it as: thread → questions → conclusions. Use custom record types for supporting artifacts.
 
 Rules of engagement (default workflow):
 1) Orient: call get_project_overview (default project unless project_id provided).
@@ -44,6 +45,7 @@ Docs (progressive disclosure):
 - trellis://docs/workflows/activation-and-writing
 - trellis://docs/workflows/conflicts
 - trellis://docs/record-writing
+- trellis://docs/reasoning-model (how to save reasoning as threads/questions/conclusions)
 `
 
 type docResource struct {
@@ -76,6 +78,7 @@ This server is designed for **progressive disclosure**: keep your baseline conte
 ## Docs (read on demand)
 
 - ` + "`trellis://docs/concepts`" + ` — glossary + invariants (activation boundary, tick-gap staleness, concurrency).
+- ` + "`trellis://docs/reasoning-model`" + ` — the default reasoning model: threads → questions → conclusions (plus custom artifact records).
 - ` + "`trellis://docs/record-writing`" + ` — how to write records that remain self-explaining and cheap to load.
 - ` + "`trellis://docs/workflows/cold-start`" + ` — “new chat / resume work” playbook.
 - ` + "`trellis://docs/workflows/activation-and-writing`" + ` — the normal reasoning + mutation loop.
@@ -89,6 +92,103 @@ This server is designed for **progressive disclosure**: keep your baseline conte
 ## Where sizes live
 
 ` + "`resources/list`" + ` returns each doc resource with a ` + "`size`" + ` (bytes) estimate so clients can budget context.
+`,
+	},
+	{
+		URI:         "trellis://docs/reasoning-model",
+		Name:        "docs_reasoning_model",
+		Title:       "Reasoning model: threads, questions, conclusions",
+		Description: "How to persist reasoning: model conversational work as a thread containing questions and conclusions; use custom records for artifacts.",
+		Content: `# Reasoning model: threads → questions → conclusions
+
+Use this model when the user asks you to persist/checkpoint reasoning from a conversation.
+
+## Principles
+
+- Save on request: do not write records unless the user asks to save/checkpoint.
+- Retroactive modeling: synthesize the *final* position + rationale; avoid transcript-like logs.
+- Reasoning vs artifacts: persist reasoning as threads/questions/conclusions; use custom record types for supporting material (notes, specs, outputs, code snippets, checklists, etc.).
+
+## Record types (default)
+
+### 1) Thread (` + "`type=\"thread\"`" + `)
+
+A thread is a durable container for one reasoning flow (often one conversation or multi-step exploration).
+
+Use threads when saving conversation-derived work. A thread is usually a **root record** (no parent).
+
+Thread body guidance:
+- Rewrite, don’t append. Keep it as orientation material.
+- Include current focus, open questions, progress, next steps.
+
+Suggested thread body template:
+
+` + "```markdown" + `
+## Current Focus
+
+## Open Questions
+
+## Recent Progress
+
+## Next Steps
+` + "```" + `
+
+### 2) Question (` + "`type=\"question\"`" + `)
+
+A question is an explicit decision/uncertainty with options and trade-offs. Questions should be **children of the active thread** when the question arose during conversational exploration.
+
+Create a question when (on save/checkpoint):
+- there are 2+ plausible options with real trade-offs, or
+- the user is uncertain / needs a decision to proceed, or
+- the answer will constrain downstream work.
+
+Question body template:
+- Context (situation)
+- The question (what is being decided)
+- Stakes (why it matters)
+- Constraints (non-negotiables, key trade-offs)
+- Options considered (fairly; include pros/cons; call out unknowns)
+- Decision criteria (what would make one option win)
+- Current status (what’s next)
+
+### 3) Conclusion (` + "`type=\"conclusion\"`" + `)
+
+A conclusion captures a resolved position/decision with rationale and implications. Conclusions should usually be **children of the thread**, and should explicitly reference the question(s) they resolve using ` + "`related[]`" + `.
+
+Create a conclusion when (on save/checkpoint):
+- a decision is made (including “defer” / “don’t do this”), or
+- a question is resolved and you want the rationale preserved.
+
+Conclusion body template:
+- Decision (what we chose and what we did not choose)
+- Rationale (key reasons and trade-offs)
+- Alternatives rejected (and why)
+- Implications / next steps
+- Conditions for reconsideration
+
+## Relationships (how to connect records)
+
+Recommended structure for conversation-derived reasoning:
+- Thread (root)
+  - Question(s) (children)
+  - Conclusion(s) (children; references the resolved question(s) in ` + "`related[]`" + `)
+
+If you need a stronger tree relationship, it’s also acceptable to make a conclusion a **child of its question**. Prefer whichever makes activation browsing easier for the project.
+
+## Workflow (when the user asks to save)
+
+1) If there’s an active thread record, use it.
+2) If there is no active thread, create a new ` + "`thread`" + ` root record that summarizes the exploration.
+3) Create/update ` + "`question`" + ` records for the key open decisions.
+4) Create ` + "`conclusion`" + ` records for decisions reached; link them to the question(s) via ` + "`related[]`" + `.
+5) Create custom artifact records (any ` + "`type`" + `) for supporting material and link them from the relevant question/conclusion.
+
+## Continuity (superseding a conclusion)
+
+When new work contradicts a prior conclusion:
+- make the contradiction explicit,
+- create a new conclusion that references the old one in ` + "`related[]`" + ` and explains what changed,
+- preserve the chain so “old → new” is navigable without chat transcripts.
 `,
 	},
 	{
@@ -217,7 +317,7 @@ Save on request: keep exploratory thinking in chat; persist only when the user a
 - HTTP: use the ` + "`Mcp-Session-Id`" + ` header.
 - Stdio: prefer ` + "`_meta.session_id`" + `. If your client can’t set it, pass ` + "`session_id`" + ` arguments where supported (e.g. ` + "`update_record`" + `, ` + "`save_session`" + `, ` + "`close_session`" + `).
 `,
-		},
+	},
 	{
 		URI:         "trellis://docs/workflows/conflicts",
 		Name:        "docs_workflow_conflicts",
@@ -254,6 +354,8 @@ Avoid “blind force”; it can discard someone else’s work.
 		Title:       "Record writing guide",
 		Description: "How to write records that remain self-explaining and cheap to load in future activations.",
 		Content: `# Record writing guide
+
+If you’re saving reasoning from a conversation, use ` + "`trellis://docs/reasoning-model`" + ` (threads → questions → conclusions) in addition to the generic writing guidance here.
 
 Records should be self-explaining without rereading chat transcripts.
 

@@ -91,28 +91,27 @@ This provides sufficient context for reasoning without loading entire tree.
 
 ## Principles
 
-### User Control Over Schema
+### Record Types (type-agnostic, but a default reasoning model)
 
 The API is type-agnostic. Record types are user-defined strings.
 
 - System doesn't enforce what types exist
 - System doesn't enforce type-specific rules
-- Schemes (skill files) define types and their semantics
-- Users can create custom schemes or use none
+- Agents should still use a consistent **default reasoning model** when saving conversations: `type="thread"` → `type="question"` → `type="conclusion"`.
+- Custom record types are still supported for supporting material (artifacts, outputs, notes, specs, etc.).
 
 **Examples**:
-- Question/conclusion scheme: `type="question"`, `type="conclusion"`
-- Threads scheme: `type="thread"` for grouping conversational work
+- Reasoning model: `type="thread"`, `type="question"`, `type="conclusion"`
 - Custom: `type="spec"`, `type="decision"`, `type="risk"`
 
-### Opt-in Threads
+### Threads (default for conversation-derived reasoning)
 
-Threads are an optional organizational pattern, not a core concept.
+Threads are the default organizational pattern for conversation-derived reasoning.
 
 - A thread is a record with `type="thread"`
 - Threads group conversational/session-contextual work
 - Project-level artifacts don't require threads
-- Users who don't want threads simply don't create them
+- If a user wants flat organization, you can skip threads and still use question/conclusion records.
 
 See `trellis-threads.SKILL.md` for the threads pattern.
 

@@ -518,6 +518,7 @@ func TestFunctional_DocumentationResources(t *testing.T) {
 	expected := []string{
 		"trellis://docs/index",
 		"trellis://docs/concepts",
+		"trellis://docs/reasoning-model",
 		"trellis://docs/workflows/cold-start",
 		"trellis://docs/workflows/activation-and-writing",
 		"trellis://docs/workflows/conflicts",
@@ -547,4 +548,11 @@ func TestFunctional_DocumentationResources(t *testing.T) {
 	require.Equal(t, "trellis://docs/index", readResult.Contents[0].URI)
 	require.Equal(t, "text/markdown", readResult.Contents[0].MIMEType)
 	require.Contains(t, readResult.Contents[0].Text, "Agent Docs Index")
+
+	reasoningResp := rpcCall(t, ts, "", "resources/read", map[string]any{"uri": "trellis://docs/reasoning-model"})
+	require.Nil(t, reasoningResp.Error)
+	require.NoError(t, json.Unmarshal(reasoningResp.Result, &readResult))
+	require.Len(t, readResult.Contents, 1)
+	require.Equal(t, "trellis://docs/reasoning-model", readResult.Contents[0].URI)
+	require.Contains(t, readResult.Contents[0].Text, "threads")
 }
