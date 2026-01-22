@@ -132,6 +132,14 @@ Each record must be comprehensible without the originating conversation. The cha
 
 **The Stranger Test**: Would someone with domain expertise but no conversation access understand this document?
 
+### Save on Request
+
+The agent only persists information when the user asks to “save” / “checkpoint”.
+
+- Chat can include exploration and position changes; records should capture the synthesized outcome.
+- Prefer retroactive modeling: save one coherent record that notes key rejected alternatives rather than saving every intermediate stance.
+- Notation (scenario docs): `T1, T2…` = chat thoughts, `R1, R2…` = records, `→` = flow direction.
+
 ---
 
 ## Workflows
@@ -139,7 +147,7 @@ Each record must be comprehensible without the originating conversation. The cha
 ### Starting a Session
 
 ```
-Chat opens
+User: "What's the state of the project?"
   ↓
 Agent: get_project_overview()
   → Orientation: tick, open sessions, roots
@@ -172,7 +180,7 @@ Agent: transition(record_id, to_state=RESOLVED, resolved_by=conclusion_id)
 ### Ending a Session
 
 ```
-User: "Let's wrap up"
+User: "Save and wrap up"
   ↓
 Agent: save_session()  // checkpoint
 Agent: close_session() // end tracking
@@ -215,6 +223,8 @@ When using the threads pattern:
 ### Session Start with Threads
 
 ```
+User: "What threads are open?"
+  ↓
 Agent: get_project_overview()
 Agent: list_records(types=["thread"], states=["OPEN"])
   → Open threads

@@ -10,7 +10,7 @@ This doc explores options for documenting the `threds-mcp` MCP server for LLM ag
   - tool workflows and constraints (procedural rules)
 
 It builds on:
-- `docs/0117-scenario-analysis.md` (what agents *need to do*)
+- `docs/0122-scenario-analysis.md` (what agents *need to do*)
 - `docs/0119-patterns-in-mcp-guidance.md` (how mature MCP servers guide agents)
 
 ---
@@ -137,7 +137,7 @@ Use a small always-on manual plus modular on-demand resources.
 **On-demand (resources / templates)**
 - `docs/index`: what docs exist, sizes, and when to load them
 - `docs/concepts`: deeper mental model + invariants
-- `docs/workflows/*`: scenario playbooks (maps directly to `0117-scenario-analysis`)
+- `docs/workflows/*`: scenario playbooks (maps directly to `0122-scenario-analysis`)
 - `docs/toolcards/*`: tool-by-tool “gotchas” and follow-ups (beyond schema)
 - `docs/record-writing`: how to keep records self-explaining and compressible
 
@@ -250,4 +250,3 @@ This is the shape of what should live in Server Instructions (not necessarily th
 5) **Treat tick gap as staleness**: if warned or resuming an old thread, call `sync_session`.
 6) **Handle concurrency explicitly**: warnings mean “someone else may be editing”; conflicts require reconciliation before `force`.
 7) **Close the loop**: `save_session` for sync points; `close_session` when done.
-

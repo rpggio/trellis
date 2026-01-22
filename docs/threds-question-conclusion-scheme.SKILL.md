@@ -7,9 +7,15 @@ description: A scheme for modeling conversations using threds MCP based on quest
 
 Questions and conclusions are the only elements of the reasoning model. When saving a conversation, model as these record types. Fill in inferred records as needed to assemble a coherent reasoning model.
 
+## Save on request and retroactive modeling
+
+- Only create/update records when the user asks to “save” / “checkpoint”.
+- Keep exploration and position changes in chat; when asked to save, synthesize the final position + rationale into a coherent record.
+- Mention key rejected alternatives in the saved record rather than saving every intermediate stance.
+
 ## When to create a question
 
-Create a new question record when:
+When the user asks to save, create a new question record when:
 - There are 2+ plausible options with real trade-offs.
 - The user is uncertain or needs a decision to proceed.
 - The answer will constrain downstream work (architecture, API shape, deadlines, cost, risk).
@@ -17,7 +23,7 @@ Create a new question record when:
 
 ## When to create a conclusion
 
-Create a conclusion record when:
+When the user asks to save, create a conclusion record when:
 - A decision is made with rationale.
 - A question is resolved (even if the answer is “defer” or “don’t do this”).
 - Constraints eliminate all but one option, and the reasoning matters later.

@@ -29,11 +29,11 @@ Threds is a record-based memory system for complex reasoning across chats. `thre
 1. Orient: `get_project_overview` (root records + open sessions + tick gap signals).
 2. Find: `search_records` / `list_records` to locate the next record to work on.
 3. Reason: `activate` to load the record’s context into the current session.
-4. Write: `create_record`, `update_record`, `transition` (updates require activation; `update_record` may return a conflict unless `force=true`).
-5. Sync/finish: `sync_session` as needed, then `save_session` and `close_session`.
-6. New chat: open a new chat and call `activate` on the record you want to work on.
+4. Persist (on user request): `create_record`, `update_record`, `transition` (updates require activation; `update_record` may return a conflict unless `force=true`).
+5. Checkpoint/finish: `sync_session` as needed; call `save_session` only when the user requests a checkpoint; `close_session` when done.
+6. New chat: in response to the user’s first message, orient (`get_project_overview`) and `activate` the record you want to work on.
 
-References: `docs/0116-core-requirements.md`, `docs/0117-scenario-analysis.md`.
+References: `docs/0116-core-requirements.md`, `docs/0122-scenario-analysis.md`.
 
 ## MCP Endpoints
 

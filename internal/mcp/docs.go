@@ -15,6 +15,14 @@ Core concepts (keep this mental model small):
 - Session: a chat’s working context; tracks last synced tick and activated records.
 - Activation boundary: call activate(id) before doing serious reasoning or mutation; it returns a minimal ContextBundle.
 
+Interaction model:
+- You can only call tools while responding to a user message. In a fresh chat, start by clarifying what the user wants, then orient/activate as needed.
+
+Information flow principles:
+- Chat is ephemeral; records are durable.
+- Save on request: don’t create/update/transition or save_session unless the user asks to persist/checkpoint.
+- Retroactive modeling: when asked to save, synthesize the conversation into a coherent record (mention key rejected alternatives instead of logging every position change).
+
 Rules of engagement (default workflow):
 1) Orient: call get_project_overview (default project unless project_id provided).
 2) Browse cheaply: use search_records / list_records / get_recent_activity / get_record_ref (prefer RecordRef over full bodies).
@@ -23,7 +31,7 @@ Rules of engagement (default workflow):
    - If update_record returns a conflict, reconcile explicitly; only retry with force=true after merging.
    - If activate returns warnings about other sessions, proceed cautiously.
 5) Staleness: if tick_gap > 0 (overview) or staleness > 0 (sync_session), call sync_session before significant edits.
-6) Close the loop: save_session for an explicit sync point; close_session when done.
+6) Close the loop: close_session when done (save_session only when the user requests a checkpoint).
 
 Transport notes:
 - HTTP: pass session id via Mcp-Session-Id header.
@@ -58,12 +66,12 @@ This server is designed for **progressive disclosure**: keep your baseline conte
 
 ## Quick start (no deep docs)
 
-1. ` + "`get_project_overview`" + ` to orient (project tick, open sessions, root records).
+1. On the user’s first message in a chat, call ` + "`get_project_overview`" + ` to orient (project tick, open sessions, root records).
 2. ` + "`search_records`" + ` / ` + "`list_records`" + ` to find a target record (prefer refs).
 3. ` + "`activate`" + ` before serious reasoning or mutation.
-4. Mutate via ` + "`create_record`" + ` / ` + "`update_record`" + ` / ` + "`transition`" + `.
+4. If the user asks to persist, mutate via ` + "`create_record`" + ` / ` + "`update_record`" + ` / ` + "`transition`" + ` (synthesize; don’t save every position change).
 5. Use ` + "`sync_session`" + ` when tick gap indicates staleness.
-6. End with ` + "`save_session`" + ` and ` + "`close_session`" + `.
+6. If the user asks for a checkpoint, call ` + "`save_session`" + `; ` + "`close_session`" + ` when done.
 
 ## Docs (read on demand)
 
@@ -127,7 +135,16 @@ This server is “single-writer intent”: concurrent edits aren’t forbidden, 
 - ` + "`activate`" + ` may return warnings if other sessions are active on the same record.
 - ` + "`update_record`" + ` may return a **conflict** instead of a record. Treat this as “stop and reconcile”.
 - Use ` + "`force=true`" + ` only after you’ve compared versions and intentionally merged.
-`,
+
+## Information flow (chat → records)
+
+Notation used in workflow docs:
+- T1, T2, … — ephemeral chat thoughts (not persisted)
+- R1, R2, … — persisted records
+- → — information flow direction
+
+Default behavior: save on request (synthesize T* into a durable R*; don’t log every turn).
+	`,
 	},
 	{
 		URI:         "threds://docs/workflows/cold-start",
@@ -137,6 +154,8 @@ This server is “single-writer intent”: concurrent edits aren’t forbidden, 
 		Content: `# Workflow: cold start / resume
 
 Goal: orient yourself with **one call**, then decide what to activate.
+
+These tool calls always happen while responding to a user message (you can’t run tools at chat-open).
 
 ## 1) Orient (one call)
 
@@ -174,6 +193,8 @@ If activation returns warnings (other sessions), prefer non-destructive changes 
 
 ## Normal loop
 
+Save on request: keep exploratory thinking in chat; persist only when the user asks to “save” / “checkpoint”. When saving, synthesize into coherent records (not transcripts).
+
 1) ` + "`activate(record_id)`" + ` to load a ContextBundle.
 
 2) Make changes:
@@ -188,7 +209,7 @@ If activation returns warnings (other sessions), prefer non-destructive changes 
 - If you see tick gap warnings (overview) or ` + "`sync_session`" + ` reports staleness > 0, sync before further edits.
 
 5) Close the loop:
-- ` + "`save_session`" + ` at a meaningful checkpoint.
+- ` + "`save_session`" + ` if the user requests a checkpoint.
 - ` + "`close_session`" + ` when the user is done with that thread.
 
 ## Session ID passing
@@ -235,6 +256,11 @@ Avoid “blind force”; it can discard someone else’s work.
 		Content: `# Record writing guide
 
 Records should be self-explaining without rereading chat transcripts.
+
+## Save on request (how to persist chat)
+
+- Keep exploration in chat until the user asks to “save” / “checkpoint”.
+- When asked, synthesize the final position and rationale into a coherent record; mention key rejected alternatives instead of saving every position change.
 
 ## Field guidance
 

@@ -268,7 +268,7 @@ func registerActivationTools(server *sdkmcp.Server, svc Services) {
 func registerMutationTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "create_record",
-		Description: "Create a record (optionally under parent_id). Write it to stand alone; see `threds://docs/record-writing`. If a session is active, the record is auto-activated.",
+		Description: "Create a record (optionally under parent_id). Use when the user asks to persist; write it to stand alone; see `threds://docs/record-writing`. If a session is active, the record is auto-activated.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CreateRecordParams) (*sdkmcp.CallToolResult, *CreateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -301,7 +301,7 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "update_record",
-		Description: "Update an activated record. Keep it self-explaining; see `threds://docs/record-writing`. May return a conflict unless force=true; requires a session id context.",
+		Description: "Update an activated record when the user asks to persist changes. Keep it self-explaining; see `threds://docs/record-writing`. May return a conflict unless force=true; requires a session id context.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input UpdateRecordParams) (*sdkmcp.CallToolResult, *UpdateRecordResponse, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -355,7 +355,7 @@ func registerMutationTools(server *sdkmcp.Server, svc Services) {
 func registerSessionTools(server *sdkmcp.Server, svc Services) {
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "save_session",
-		Description: "Persist a session checkpoint (updates last_sync_tick). Uses current session or session_id argument.",
+		Description: "Persist a session checkpoint (updates last_sync_tick) when the user asks to save/checkpoint. Uses current session or session_id argument.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input SaveSessionParams) (*sdkmcp.CallToolResult, map[string]string, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)
@@ -373,7 +373,7 @@ func registerSessionTools(server *sdkmcp.Server, svc Services) {
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "close_session",
-		Description: "Close a session when a thread of work is done. Uses current session or session_id argument.",
+		Description: "Close a session when a thread of work is done (closing does not imply saving). Uses current session or session_id argument.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input CloseSessionParams) (*sdkmcp.CallToolResult, map[string]string, error) {
 		tenantID := getTenantID(ctx)
 		sessionID := getSessionID(ctx)

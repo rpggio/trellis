@@ -23,7 +23,7 @@ Skip threads when:
 
 ### Creating a Thread
 
-Create a thread when first saving conversational content and no thread is active:
+Create a thread when the user first asks to save conversational content and no thread is active:
 
 ```
 Agent: create_record(
@@ -37,7 +37,7 @@ Threads are always root records (no parent). They exist at the project level.
 
 ### Activating a Thread
 
-At session start, query for open threads:
+On the user’s first message in a chat (or when they ask to continue work), query for open threads:
 
 ```
 Agent: list_records(types=["thread"], states=["OPEN"])
@@ -114,12 +114,13 @@ Project records can be roots or children of other project records. They don't re
 
 ## Session Start Workflow
 
-1. Call `get_project_overview()` for orientation
-2. Call `list_records(types=["thread"], states=["OPEN"])` to find open threads
-3. Present open threads to user with summaries
-4. If user wants to continue a thread: `activate(thread_id)`
-5. If user starts new work: create thread when first conversational record is needed
-6. If user wants project-level work only: skip threads, create root records
+1. Wait for the user to indicate intent (continue a thread, start new, or just browse)
+2. Call `get_project_overview()` for orientation as needed
+3. Call `list_records(types=["thread"], states=["OPEN"])` to find open threads
+4. Present open threads to user with summaries
+5. If user wants to continue a thread: `activate(thread_id)`
+6. If user starts new work: create a thread only when the user asks to save conversational records
+7. If user wants project-level work only: skip threads, create root records
 
 ## Conflict Handling
 
@@ -156,7 +157,7 @@ Keep it concise. This is orientation material, not comprehensive documentation.
 ## Example Flow
 
 ```
-User opens chat
+User: "What open threads do I have?"
   ↓
 Agent: get_project_overview()
 Agent: list_records(types=["thread"], states=["OPEN"])
@@ -171,9 +172,10 @@ Agent: activate("r_abc")
   ↓
 [Conversation proceeds, new questions created as children of thread]
   ↓
-User: "I think we've resolved this"
+User: "Save this and close the thread"
   ↓
 Agent: transition("r_abc", to_state=RESOLVED, reason="Decided on URL-path versioning")
+Agent: save_session()
 Agent: close_session()
 ```
 

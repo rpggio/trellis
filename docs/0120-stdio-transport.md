@@ -281,4 +281,4 @@ Potential improvements for stdio support:
 - MCP Specification: https://modelcontextprotocol.io
 - Go SDK: github.com/modelcontextprotocol/go-sdk
 - Core requirements: `docs/0116-core-requirements.md`
-- Scenario analysis: `docs/0117-scenario-analysis.md`
+- Scenario analysis: `docs/0122-scenario-analysis.md`
