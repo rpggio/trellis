@@ -297,7 +297,7 @@ HTTP server handles requests
 
 
 Phase 6: MCP Handler Layer (API Implementation)
-Goal: Implement all 23 MCP commands.
+Goal: Implement all 22 MCP commands.
 Tasks
 
 Define MCP types (internal/mcp/types.go)
@@ -313,13 +313,13 @@ Handle(ctx, tenantID, sessionID, method, params) method
 Switch on method, unmarshal params, call domain service, return result
 
 
-Implement all 23 commands:
+Implement all 22 commands:
 
 Project (3): create_project, list_projects, get_project
 Orientation (4): get_project_overview, search_records, list_records, get_record_ref
 Activation (2): activate, sync_session
 Mutation (3): create_record, update_record, transition
-Session lifecycle (3): save_session, close_session, branch_session
+Session lifecycle (2): save_session, close_session
 History & conflict (3): get_record_history, get_record_diff, get_active_sessions
 Activity (1): get_recent_activity
 

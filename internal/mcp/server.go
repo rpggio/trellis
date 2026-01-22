@@ -36,7 +36,6 @@ type SessionService interface {
 	SyncSession(ctx context.Context, tenantID, sessionID string) (*session.SyncResult, error)
 	SaveSession(ctx context.Context, tenantID, sessionID string) error
 	CloseSession(ctx context.Context, tenantID, sessionID string) error
-	BranchSession(ctx context.Context, tenantID, sourceSessionID, focusRecordID string) (*session.Session, error)
 	GetActiveSessionsForRecord(ctx context.Context, tenantID, recordID string) ([]session.SessionInfo, error)
 	ListActiveSessions(ctx context.Context, tenantID, projectID string) ([]session.SessionInfo, error)
 }

@@ -23,6 +23,7 @@ type SessionRepository interface {
 	ListActive(ctx context.Context, tenantID, projectID string) ([]SessionInfo, error)
 	GetByRecordID(ctx context.Context, tenantID, recordID string) ([]SessionInfo, error)
 	AddActivation(ctx context.Context, sessionID, recordID string, tick int64) error
+	GetActivations(ctx context.Context, sessionID string) ([]string, error)
 }
 
 // ProjectRepository provides project access for tick data.

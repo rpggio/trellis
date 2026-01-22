@@ -24,9 +24,9 @@ func NewSessionRepository(db *DB) *SessionRepository {
 func (r *SessionRepository) Create(ctx context.Context, tenantID string, sess *session.Session) error {
 	query := `
 		INSERT INTO sessions (
-			id, tenant_id, project_id, status, focus_record, parent_session,
+			id, tenant_id, project_id, status, parent_session,
 			last_sync_tick, created_at, last_activity, closed_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -34,7 +34,6 @@ func (r *SessionRepository) Create(ctx context.Context, tenantID string, sess *s
 		tenantID,
 		sess.ProjectID,
 		sess.Status,
-		sess.FocusRecord,
 		sess.ParentSession,
 		sess.LastSyncTick,
 		sess.CreatedAt,
@@ -55,14 +54,13 @@ func (r *SessionRepository) Create(ctx context.Context, tenantID string, sess *s
 func (r *SessionRepository) Get(ctx context.Context, tenantID, id string) (*session.Session, error) {
 	query := `
 		SELECT
-			id, tenant_id, project_id, status, focus_record, parent_session,
+			id, tenant_id, project_id, status, parent_session,
 			last_sync_tick, created_at, last_activity, closed_at
 		FROM sessions
 		WHERE id = ? AND tenant_id = ?
 	`
 
 	var sess session.Session
-	var focusRecord sql.NullString
 	var parentSession sql.NullString
 	var closedAt sql.NullTime
 	err := r.db.QueryRowContext(ctx, query, id, tenantID).Scan(
@@ -70,7 +68,6 @@ func (r *SessionRepository) Get(ctx context.Context, tenantID, id string) (*sess
 		&sess.TenantID,
 		&sess.ProjectID,
 		&sess.Status,
-		&focusRecord,
 		&parentSession,
 		&sess.LastSyncTick,
 		&sess.CreatedAt,
@@ -84,9 +81,6 @@ func (r *SessionRepository) Get(ctx context.Context, tenantID, id string) (*sess
 		return nil, fmt.Errorf("failed to get session: %w", err)
 	}
 
-	if focusRecord.Valid {
-		sess.FocusRecord = &focusRecord.String
-	}
 	if parentSession.Valid {
 		sess.ParentSession = &parentSession.String
 	}
@@ -107,14 +101,13 @@ func (r *SessionRepository) Get(ctx context.Context, tenantID, id string) (*sess
 func (r *SessionRepository) Update(ctx context.Context, tenantID string, sess *session.Session) error {
 	query := `
 		UPDATE sessions
-		SET status = ?, focus_record = ?, parent_session = ?, last_sync_tick = ?,
+		SET status = ?, parent_session = ?, last_sync_tick = ?,
 		    last_activity = ?, closed_at = ?
 		WHERE id = ? AND tenant_id = ?
 	`
 
 	result, err := r.db.ExecContext(ctx, query,
 		sess.Status,
-		sess.FocusRecord,
 		sess.ParentSession,
 		sess.LastSyncTick,
 		sess.LastActivity,
@@ -168,7 +161,7 @@ func (r *SessionRepository) Close(ctx context.Context, tenantID, id string) erro
 // ListActive returns active sessions for a project
 func (r *SessionRepository) ListActive(ctx context.Context, tenantID, projectID string) ([]session.SessionInfo, error) {
 	query := `
-		SELECT id, focus_record, created_at, last_activity, last_sync_tick
+		SELECT id, created_at, last_activity, last_sync_tick
 		FROM sessions
 		WHERE tenant_id = ? AND project_id = ? AND status = 'active'
 		ORDER BY last_activity DESC
@@ -183,12 +176,8 @@ func (r *SessionRepository) ListActive(ctx context.Context, tenantID, projectID 
 	var sessions []session.SessionInfo
 	for rows.Next() {
 		var info session.SessionInfo
-		var focus sql.NullString
-		if err := rows.Scan(&info.SessionID, &focus, &info.CreatedAt, &info.LastActivity, &info.LastSyncTick); err != nil {
+		if err := rows.Scan(&info.SessionID, &info.CreatedAt, &info.LastActivity, &info.LastSyncTick); err != nil {
 			return nil, fmt.Errorf("failed to scan session info: %w", err)
-		}
-		if focus.Valid {
-			info.FocusRecord = &focus.String
 		}
 		sessions = append(sessions, info)
 	}
@@ -202,7 +191,7 @@ func (r *SessionRepository) ListActive(ctx context.Context, tenantID, projectID 
 // GetByRecordID returns active or stale sessions where a record is activated
 func (r *SessionRepository) GetByRecordID(ctx context.Context, tenantID, recordID string) ([]session.SessionInfo, error) {
 	query := `
-		SELECT s.id, s.focus_record, s.created_at, s.last_activity, s.last_sync_tick
+		SELECT s.id, s.created_at, s.last_activity, s.last_sync_tick
 		FROM sessions s
 		JOIN session_activations sa ON sa.session_id = s.id
 		WHERE s.tenant_id = ? AND sa.record_id = ? AND s.status IN ('active', 'stale')
@@ -218,12 +207,8 @@ func (r *SessionRepository) GetByRecordID(ctx context.Context, tenantID, recordI
 	var sessions []session.SessionInfo
 	for rows.Next() {
 		var info session.SessionInfo
-		var focus sql.NullString
-		if err := rows.Scan(&info.SessionID, &focus, &info.CreatedAt, &info.LastActivity, &info.LastSyncTick); err != nil {
+		if err := rows.Scan(&info.SessionID, &info.CreatedAt, &info.LastActivity, &info.LastSyncTick); err != nil {
 			return nil, fmt.Errorf("failed to scan session info: %w", err)
-		}
-		if focus.Valid {
-			info.FocusRecord = &focus.String
 		}
 		sessions = append(sessions, info)
 	}

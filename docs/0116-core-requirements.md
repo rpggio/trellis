@@ -19,7 +19,7 @@
   - The content for a record is not loaded twice within the same session
     - If the record has changed since last command, they system may return a change event with diff, or just return the entire changed record
 
-- A session may be branched into a new session (typically in a new chat). The branched session retains the active context from original session. The branch operation also performs sync-down.
+- To work on a record in a new chat, the user opens the chat and the agent calls `activate(record_id)`. Context is loaded per standard activation rules.
 
 - When a chat is being ended, the user is expected to close the session (also triggers sync-up). 
 
@@ -32,4 +32,3 @@
   - The system should demand an override from the user before updating records active in another session.
 
 - Concurrent reasoning against records will require a system with more real-time control than MCP: plugins, hooks, or a dedicated chat app. [DEFER]
-

@@ -77,13 +77,13 @@ This provides sufficient context for reasoning without loading entire tree.
 ### Reasoning (requires activation)
 
 - `activate(id)` — load record context
-- `create_record(...)` — create record (auto-activates)
+- `create_record(...)` — create record (auto-activates if a session is active)
 - `update_record(id, ...)` — modify content
 - `transition(id, state)` — change workflow state
 
 ### Session Lifecycle
 
-- `sync_session()` — pull changes, check staleness
+- `sync_session()` — check staleness (tick gap), refresh session baseline
 - `save_session()` — checkpoint
 - `close_session()` — end session
 
@@ -157,7 +157,7 @@ Agent: activate(record_id)
 
 ```
 Agent: create_record(parent, type, title, body)
-  → Record created, auto-activated
+  → Record created, auto-activated if a session is active
   ↓
 Work continues on new record
 ```
@@ -184,12 +184,14 @@ Agent: close_session() // end tracking
 Returning to old session
   ↓
 Agent: sync_session()
-  → Returns tick gap and changes
+  → Returns tick gap and session status
   ↓
 Agent: "X writes occurred. Review changes?"
   ↓
 [User decides how to proceed]
 ```
+
+If the user wants details, follow with `get_recent_activity()` or `list_records(...)` since `sync_session()` only reports staleness.
 
 ### Handling Conflicts
 
@@ -259,4 +261,4 @@ Agent: transition(thread_id, to_state=RESOLVED, reason="...")
 3. Open sessions assumed to have unsaved work
 4. Staleness = tick gap, not wall-clock time
 5. Records form tree (no cycles)
-6. Depth limit: warn at 5, hard limit at 10
+6. Depth limit is agent guidance for now (warn at 5, avoid >10)

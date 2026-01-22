@@ -176,6 +176,25 @@ func TestFunctional_ActivationWorkflow(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(activateResp, &activation))
 
+	overviewResp := callTool(t, ts, "", "get_project_overview", map[string]any{})
+	var overview struct {
+		OpenSessions []struct {
+			ID            string   `json:"id"`
+			ActiveRecords []string `json:"active_records"`
+		} `json:"open_sessions"`
+	}
+	require.NoError(t, json.Unmarshal(overviewResp, &overview))
+	require.NotEmpty(t, overview.OpenSessions)
+
+	foundSession := false
+	for _, sess := range overview.OpenSessions {
+		if sess.ID == activation.SessionID {
+			foundSession = true
+			require.Contains(t, sess.ActiveRecords, root.Record.ID)
+		}
+	}
+	require.True(t, foundSession)
+
 	childResp := callTool(t, ts, activation.SessionID, "create_record", map[string]any{
 		"parent_id": root.Record.ID,
 		"type":      "note",

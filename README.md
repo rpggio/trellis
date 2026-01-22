@@ -26,12 +26,12 @@ Threds is a record-based memory system for complex reasoning across chats. `thre
 
 ## Workflow (Typical MCP Client / Agent)
 
-1. Orient: `get_project_overview` (root records + open sessions + tick gap warnings).
+1. Orient: `get_project_overview` (root records + open sessions + tick gap signals).
 2. Find: `search_records` / `list_records` to locate the next record to work on.
 3. Reason: `activate` to load the record’s context into the current session.
 4. Write: `create_record`, `update_record`, `transition` (updates require activation; `update_record` may return a conflict unless `force=true`).
 5. Sync/finish: `sync_session` as needed, then `save_session` and `close_session`.
-6. Branch: `branch_session` to continue a focused subtopic in a new chat session.
+6. New chat: open a new chat and call `activate` on the record you want to work on.
 
 References: `docs/0116-core-requirements.md`, `docs/0117-scenario-analysis.md`.
 
@@ -191,7 +191,7 @@ make test
 
 - Projects: `create_project`, `list_projects`, `get_project`
 - Orientation: `get_project_overview`, `search_records`, `list_records`, `get_record_ref`
-- Sessions: `activate`, `sync_session`, `save_session`, `close_session`, `branch_session`
+- Sessions: `activate`, `sync_session`, `save_session`, `close_session`
 - Mutations: `create_record`, `update_record`, `transition`
 - History: `get_record_history`, `get_recent_activity`, `get_active_sessions`, `get_record_diff` (placeholder)
 - Utility: `ping`

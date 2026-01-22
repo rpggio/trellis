@@ -137,33 +137,6 @@ func TestIntegration_ConflictDetection(t *testing.T) {
 	require.NotNil(t, conflict)
 }
 
-func TestIntegration_SessionBranching(t *testing.T) {
-	ctx := context.Background()
-	env := newTestEnv(t)
-	tenantID := "tenant1"
-
-	proj, err := env.projectSvc.Create(ctx, tenantID, project.CreateRequest{Name: "Demo"})
-	require.NoError(t, err)
-
-	root, err := env.recordSvc.Create(ctx, tenantID, record.CreateRequest{
-		ProjectID: proj.ID,
-		Type:      "question",
-		Title:     "Root",
-		Summary:   "Root summary",
-		Body:      "Root body",
-	})
-	require.NoError(t, err)
-
-	activation, err := env.sessionSvc.Activate(ctx, tenantID, session.ActivateRequest{RecordID: root.ID})
-	require.NoError(t, err)
-
-	branched, err := env.sessionSvc.BranchSession(ctx, tenantID, activation.SessionID, "")
-	require.NoError(t, err)
-	require.NotEqual(t, activation.SessionID, branched.ID)
-	require.Equal(t, root.ID, *branched.FocusRecord)
-	require.NotNil(t, branched.ParentSession)
-}
-
 func TestIntegration_StateTransitions(t *testing.T) {
 	ctx := context.Background()
 	env := newTestEnv(t)

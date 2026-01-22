@@ -93,7 +93,7 @@ Session S1 now tracks: active_records = [R7, R13]
 
 ---
 
-## Scenario 2: Deep Dive — Branching to New Chat
+## Scenario 2: Deep Dive — New Chat for Subtopic
 
 **Situation**: During discussion in S1, a subtopic warrants focused exploration in a separate chat.
 
@@ -109,19 +109,13 @@ User: "Let's explore this in a new thread"
 Agent calls: create_record(parent=R7, type="question", title="Redis vs Memcached", summary="Should we use Redis or Memcached for caching?", body=T1)
   → Returns: R15 (new record, state=OPEN)
   ↓
-Agent calls: branch_session(focus_record=R15)
-  → Returns: {
-      session_id: S2,
-      inherited_context: [R7, P],
-      launch_url: "new-chat-link"
-    }
-  ↓
 User opens new chat (S2)
   ↓
-S2 automatically has:
-  - R15 activated (full content)
-  - R7 loaded (parent, full content)
-  - P loaded (grandparent, reference only)
+Agent calls: activate(R15)
+  → Context includes:
+      - R15 (full content)
+      - R7 loaded (parent, full content)
+      - P loaded (grandparent, reference only)
 ```
 
 ### State After Branch
@@ -133,7 +127,7 @@ S2 automatically has:
 
 ### Key Insight
 
-Branching creates a new session that inherits the activation chain but focuses on a specific subtopic. The parent session remains open—user may return to it.
+Opening a new chat and activating the subtopic record loads the same context. The parent session remains open—user may return to it.
 
 ---
 
@@ -472,7 +466,6 @@ Agent calls: activate(R15)
 | `sync_session()` | Pull external changes |
 | `save_session()` | Persist current state |
 | `close_session()` | End session, sync-up |
-| `branch_session(focus)` | Create derived session for subtopic |
 
 ### Conflict Handling
 
@@ -501,7 +494,7 @@ Agent calls: activate(R15)
     ┌───────────┐         ┌───────────┐         ┌───────────┐
     │ Session 1 │         │ Session 2 │         │ Session 3 │
     │ active: R7│         │active: R15│         │  (new)    │
-    │ stale     │         │ branched  │         │           │
+    │ stale     │         │          │         │           │
     └───────────┘         └───────────┘         └───────────┘
           │                     │                     │
           ▼                     ▼                     ▼

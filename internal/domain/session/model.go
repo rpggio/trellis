@@ -21,7 +21,6 @@ type Session struct {
 	TenantID      string        `json:"tenant_id"`
 	ProjectID     string        `json:"project_id"`
 	Status        SessionStatus `json:"status"`
-	FocusRecord   *string       `json:"focus_record,omitempty"`
 	ParentSession *string       `json:"parent_session,omitempty"`
 	LastSyncTick  int64         `json:"last_sync_tick"`
 	CreatedAt     time.Time     `json:"created_at"`
@@ -51,9 +50,9 @@ type ConflictInfo struct {
 
 // SessionInfo provides information about an active session
 type SessionInfo struct {
-	SessionID    string    `json:"session_id"`
-	FocusRecord  *string   `json:"focus_record,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	LastActivity time.Time `json:"last_activity"`
-	LastSyncTick int64     `json:"last_sync_tick"`
+	SessionID     string    `json:"session_id"`
+	CreatedAt     time.Time `json:"created_at"`
+	LastActivity  time.Time `json:"last_activity"`
+	LastSyncTick  int64     `json:"last_sync_tick"`
+	ActiveRecords []string  `json:"active_records,omitempty"`
 }

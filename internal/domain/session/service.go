@@ -180,55 +180,6 @@ func (s *Service) CloseSession(ctx context.Context, tenantID, sessionID string) 
 	return nil
 }
 
-// BranchSession creates a new session from an existing one.
-func (s *Service) BranchSession(ctx context.Context, tenantID, sourceSessionID, focusRecordID string) (*Session, error) {
-	if sourceSessionID == "" {
-		return nil, ErrInvalidInput
-	}
-
-	source, err := s.sessions.Get(ctx, tenantID, sourceSessionID)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, ErrSessionNotFound
-		}
-		return nil, fmt.Errorf("loading session: %w", err)
-	}
-
-	proj, err := s.projects.Get(ctx, tenantID, source.ProjectID)
-	if err != nil {
-		return nil, fmt.Errorf("loading project: %w", err)
-	}
-
-	if focusRecordID == "" && source.FocusRecord != nil {
-		focusRecordID = *source.FocusRecord
-	}
-
-	now := time.Now()
-	sess := &Session{
-		ID:            uuid.NewString(),
-		TenantID:      tenantID,
-		ProjectID:     source.ProjectID,
-		Status:        StatusActive,
-		FocusRecord:   stringPtr(focusRecordID),
-		ParentSession: &sourceSessionID,
-		LastSyncTick:  proj.Tick,
-		CreatedAt:     now,
-		LastActivity:  now,
-	}
-
-	if err := s.sessions.Create(ctx, tenantID, sess); err != nil {
-		return nil, fmt.Errorf("creating session: %w", err)
-	}
-
-	if focusRecordID != "" {
-		if err := s.sessions.AddActivation(ctx, sess.ID, focusRecordID, proj.Tick); err != nil {
-			return nil, fmt.Errorf("adding activation: %w", err)
-		}
-	}
-
-	return sess, nil
-}
-
 // GetActiveSessionsForRecord returns active sessions for a record.
 func (s *Service) GetActiveSessionsForRecord(ctx context.Context, tenantID, recordID string) ([]SessionInfo, error) {
 	return s.sessions.GetByRecordID(ctx, tenantID, recordID)
@@ -236,7 +187,23 @@ func (s *Service) GetActiveSessionsForRecord(ctx context.Context, tenantID, reco
 
 // ListActiveSessions returns active sessions for a project.
 func (s *Service) ListActiveSessions(ctx context.Context, tenantID, projectID string) ([]SessionInfo, error) {
-	return s.sessions.ListActive(ctx, tenantID, projectID)
+	sessions, err := s.sessions.ListActive(ctx, tenantID, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range sessions {
+		activations, err := s.sessions.GetActivations(ctx, sessions[i].SessionID)
+		if err != nil {
+			return nil, fmt.Errorf("loading activations for session %s: %w", sessions[i].SessionID, err)
+		}
+		if activations == nil {
+			activations = []string{}
+		}
+		sessions[i].ActiveRecords = activations
+	}
+
+	return sessions, nil
 }
 
 func (s *Service) ensureSession(ctx context.Context, tenantID, sessionID string, target *record.Record, projectTick int64) (string, error) {
@@ -248,7 +215,6 @@ func (s *Service) ensureSession(ctx context.Context, tenantID, sessionID string,
 			TenantID:     tenantID,
 			ProjectID:    target.ProjectID,
 			Status:       StatusActive,
-			FocusRecord:  &target.ID,
 			LastSyncTick: projectTick,
 			CreatedAt:    now,
 			LastActivity: now,
@@ -267,7 +233,6 @@ func (s *Service) ensureSession(ctx context.Context, tenantID, sessionID string,
 				TenantID:     tenantID,
 				ProjectID:    target.ProjectID,
 				Status:       StatusActive,
-				FocusRecord:  &target.ID,
 				LastSyncTick: projectTick,
 				CreatedAt:    now,
 				LastActivity: now,
@@ -283,9 +248,6 @@ func (s *Service) ensureSession(ctx context.Context, tenantID, sessionID string,
 	sess.LastSyncTick = projectTick
 	sess.LastActivity = now
 	sess.Status = StatusActive
-	if sess.FocusRecord == nil {
-		sess.FocusRecord = &target.ID
-	}
 	if err := s.sessions.Update(ctx, tenantID, sess); err != nil {
 		return "", fmt.Errorf("updating session: %w", err)
 	}
@@ -360,11 +322,4 @@ func (s *Service) activationWarnings(ctx context.Context, tenantID, sessionID, r
 		}
 	}
 	return warnings, nil
-}
-
-func stringPtr(value string) *string {
-	if value == "" {
-		return nil
-	}
-	return &value
 }

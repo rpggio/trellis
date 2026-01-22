@@ -50,14 +50,12 @@ CREATE TABLE IF NOT EXISTS sessions (
     tenant_id TEXT NOT NULL,
     project_id TEXT NOT NULL,
     status TEXT NOT NULL CHECK(status IN ('active', 'stale', 'closed')),
-    focus_record TEXT,
     parent_session TEXT,
     last_sync_tick INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     closed_at TIMESTAMP,
     FOREIGN KEY (project_id) REFERENCES projects(id),
-    FOREIGN KEY (focus_record) REFERENCES records(id),
     FOREIGN KEY (parent_session) REFERENCES sessions(id)
 );
 CREATE INDEX IF NOT EXISTS idx_tenant_sessions ON sessions(tenant_id);

@@ -124,37 +124,6 @@ func TestSessionService_SyncSession(t *testing.T) {
 	require.Equal(t, int64(4), result.TickGap)
 }
 
-func TestSessionService_BranchSession(t *testing.T) {
-	ctx := context.Background()
-	tenantID := "tenant1"
-
-	recordsRepo := &mocks.RecordRepository{}
-	sessionsRepo := &mocks.SessionRepository{}
-	projectsRepo := &mocks.ProjectRepository{}
-
-	sessionsRepo.On("Get", ctx, tenantID, "source").Return(&session.Session{
-		ID:        "source",
-		ProjectID: "proj1",
-		FocusRecord: func() *string {
-			val := "r1"
-			return &val
-		}(),
-	}, nil)
-	projectsRepo.On("Get", ctx, tenantID, "proj1").Return(&project.Project{
-		ID:   "proj1",
-		Tick: 3,
-	}, nil)
-	sessionsRepo.On("Create", ctx, tenantID, mock.Anything).Return(nil)
-	sessionsRepo.On("AddActivation", ctx, mock.Anything, "r1", int64(3)).Return(nil)
-
-	svc := session.NewService(recordsRepo, sessionsRepo, projectsRepo, nil)
-	sess, err := svc.BranchSession(ctx, tenantID, "source", "")
-	require.NoError(t, err)
-	require.Equal(t, "proj1", sess.ProjectID)
-	require.Equal(t, session.StatusActive, sess.Status)
-	require.NotNil(t, sess.ParentSession)
-}
-
 func TestSessionService_SaveClose(t *testing.T) {
 	ctx := context.Background()
 	tenantID := "tenant1"

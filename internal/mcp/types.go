@@ -88,11 +88,6 @@ type CloseSessionParams struct {
 	SessionID string `json:"session_id,omitempty"`
 }
 
-type BranchSessionParams struct {
-	SessionID   string `json:"session_id"`
-	FocusRecord string `json:"focus_record,omitempty"`
-}
-
 type GetRecordHistoryParams struct {
 	ID    string `json:"id"`
 	Since string `json:"since,omitempty"`
@@ -157,12 +152,10 @@ type ProjectOverviewResponse struct {
 }
 
 type ProjectSessionStatus struct {
-	ID           string    `json:"id"`
-	FocusRecord  string    `json:"focus_record,omitempty"`
-	LastActivity time.Time `json:"last_activity"`
-	LastSyncTick int64     `json:"last_sync_tick"`
-	TickGap      int64     `json:"tick_gap"`
-	Warning      string    `json:"warning,omitempty"`
+	ID            string   `json:"id"`
+	ActiveRecords []string `json:"active_records"`
+	LastSyncTick  int64    `json:"last_sync_tick"`
+	TickGap       int64    `json:"tick_gap"`
 }
 
 type CreateRecordResponse struct {
@@ -191,10 +184,6 @@ type SyncSessionResponse struct {
 	Staleness     int64                 `json:"staleness"`
 	SessionStatus session.SessionStatus `json:"session_status"`
 	Warning       string                `json:"warning,omitempty"`
-}
-
-type BranchSessionResponse struct {
-	Session session.Session `json:"session"`
 }
 
 type RecordHistoryEntry struct {

@@ -25,7 +25,7 @@ func registerTools(server *sdkmcp.Server, svc Services) {
 	// Mutations (3 tools)
 	registerMutationTools(server, svc)
 
-	// Session Lifecycle (3 tools)
+	// Session Lifecycle (2 tools)
 	registerSessionTools(server, svc)
 
 	// History/Conflict (4 tools)
@@ -131,17 +131,15 @@ func registerOrientationTools(server *sdkmcp.Server, svc Services) {
 		openSessions := make([]ProjectSessionStatus, 0, len(sessions))
 		for _, sess := range sessions {
 			tickGap := proj.Tick - sess.LastSyncTick
-			warning := ""
-			if tickGap > 0 {
-				warning = fmt.Sprintf("%d writes have occurred since last sync", tickGap)
+			activeRecords := sess.ActiveRecords
+			if activeRecords == nil {
+				activeRecords = []string{}
 			}
 			openSessions = append(openSessions, ProjectSessionStatus{
-				ID:           sess.SessionID,
-				FocusRecord:  stringValue(sess.FocusRecord),
-				LastActivity: sess.LastActivity,
-				LastSyncTick: sess.LastSyncTick,
-				TickGap:      tickGap,
-				Warning:      warning,
+				ID:            sess.SessionID,
+				ActiveRecords: activeRecords,
+				LastSyncTick:  sess.LastSyncTick,
+				TickGap:       tickGap,
 			})
 		}
 
@@ -389,19 +387,6 @@ func registerSessionTools(server *sdkmcp.Server, svc Services) {
 			return nil, nil, mapError(err)
 		}
 		return nil, map[string]string{"status": "closed"}, nil
-	})
-
-	sdkmcp.AddTool(server, &sdkmcp.Tool{
-		Name:        "branch_session",
-		Description: "Create a new session branched from an existing session (optionally focused on a record).",
-	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, input BranchSessionParams) (*sdkmcp.CallToolResult, *BranchSessionResponse, error) {
-		tenantID := getTenantID(ctx)
-
-		sess, err := svc.Sessions.BranchSession(ctx, tenantID, input.SessionID, input.FocusRecord)
-		if err != nil {
-			return nil, nil, mapError(err)
-		}
-		return nil, &BranchSessionResponse{Session: *sess}, nil
 	})
 }
 

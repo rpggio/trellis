@@ -145,6 +145,25 @@ func TestStdioFunctional_ActivationWorkflow(t *testing.T) {
 	require.NotEmpty(t, activation.SessionID)
 	require.Equal(t, root.Record.ID, activation.Context.Target.ID)
 
+	overviewResp := s.callTool(t, "get_project_overview", map[string]any{})
+	var overview struct {
+		OpenSessions []struct {
+			ID            string   `json:"id"`
+			ActiveRecords []string `json:"active_records"`
+		} `json:"open_sessions"`
+	}
+	require.NoError(t, json.Unmarshal(overviewResp, &overview))
+	require.NotEmpty(t, overview.OpenSessions)
+
+	foundSession := false
+	for _, sess := range overview.OpenSessions {
+		if sess.ID == activation.SessionID {
+			foundSession = true
+			require.Contains(t, sess.ActiveRecords, root.Record.ID)
+		}
+	}
+	require.True(t, foundSession)
+
 	// Test session management tools that accept session_id as argument
 	saveResp := s.callTool(t, "save_session", map[string]any{
 		"session_id": activation.SessionID,

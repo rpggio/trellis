@@ -82,7 +82,6 @@ interface Session {
   active_records: string[];      // Record IDs currently activated
   status: "active" | "stale" | "closed";  // Lifecycle state
   parent_session?: string;       // If branched from another session
-  focus_record?: string;         // Primary record this session is working on
 }
 
 // Session status meanings:
@@ -191,11 +190,9 @@ get_project_overview(params?: {
   };
   open_sessions: Array<{
     id: string;
-    focus_record: string;
-    last_activity: string;
+    active_records: string[];
     last_sync_tick: number;
     tick_gap: number;            // project.tick - session.last_sync_tick
-    warning?: string;            // "N writes have occurred since last sync"
   }>;
   root_records: RecordRef[];     // Top-level records
   open_records: RecordRef[];     // All OPEN records across project
@@ -488,33 +485,6 @@ close_session(params?: {
 
 ---
 
-#### branch_session
-
-Create a new session focused on a specific record, inheriting context from current session.
-
-```typescript
-branch_session(params: {
-  focus_record: string;                    // Record to focus on (often newly created)
-}): {
-  new_session_id: string;
-  inherited_context: string[];             // Record IDs inherited from parent session
-  launch_info: {                           // How to start the new chat
-    type: "url" | "command";
-    value: string;
-  };
-}
-```
-
-**Use case**: "Let's explore this subtopic in a new thread."
-
-**Side effects**:
-- Creates new session with parent_session reference
-- Copies activation chain to new session
-- Current session remains open
-- Logs session_branched event
-
----
-
 ### History and Conflict Commands
 
 #### get_record_history
@@ -632,7 +602,6 @@ type ActivityType =
 | Mutation | transition | Yes | Yes | **Yes** |
 | Session | save_session | No | Yes (session) | **Yes** |
 | Session | close_session | No | Yes (session) | No |
-| Session | branch_session | No | Yes (session) | No |
 | History | get_record_history | No | No | No |
 | History | get_record_diff | No | No | No |
 | History | get_active_sessions | No | No | No |
@@ -672,15 +641,13 @@ save_session()
 close_session()
 ```
 
-### Pattern 3: Deep Dive Branch
+### Pattern 3: New Chat for a Subtopic
 
 ```
 [In session S1, working on R7]
 create_record(parent=R7, type="question", title="Subtopic", ...)
 → returns R15
-branch_session(focus=R15)
-→ returns S2 launch info
-[User opens S2]
+[User opens new chat]
 activate(R15)
 → context includes R7 as parent
 ... deep work on R15 ...
